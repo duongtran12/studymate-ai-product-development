@@ -1,3 +1,10 @@
 spring:
   application:
     name: studymate
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/studymate}
+    username: ${SPRING_DATASOURCE_USERNAME:studymate}
+    password: ${SPRING_DATASOURCE_PASSWORD:studymate}
+
+server:
+  port: ${SERVER_PORT:8080}
