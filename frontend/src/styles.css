@@ -1,0 +1,49 @@
+:root {
+  color: #1f2937;
+  font-family: Inter, system-ui, sans-serif;
+  background: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+.brand {
+  color: #2563eb;
+  font-weight: 700;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.1;
+  margin: 12px 0;
+}
+
+.intro {
+  color: #475569;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  margin-top: 40px;
+  padding: 24px;
+}
+
+li + li {
+  margin-top: 10px;
+}
