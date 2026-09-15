@@ -1,24 +1,23 @@
-const milestones = ["Tải tài liệu", "Hỏi đáp có nguồn", "Ôn tập với quiz"];
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import AppLayout from "./layouts/AppLayout";
+import DashboardPage from "./pages/DashboardPage";
+import NotFoundPage from "./pages/NotFoundPage";
+import PlaceholderPage from "./pages/PlaceholderPage";
 
 export default function App() {
   return (
-    <main className="app-shell">
-      <header>
-        <p className="brand">StudyMate</p>
-        <h1>Trợ lý học tập từ chính tài liệu môn học</h1>
-        <p className="intro">
-          Ứng dụng sẽ giúp sinh viên tìm hiểu, hỏi đáp và ôn tập dựa trên các
-          tài liệu đã tải lên.
-        </p>
-      </header>
-      <section aria-labelledby="mvp-title">
-        <h2 id="mvp-title">MVP đang được xây dựng</h2>
-        <ul>
-          {milestones.map((milestone) => (
-            <li key={milestone}>{milestone}</li>
-          ))}
-        </ul>
-      </section>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="courses" element={<PlaceholderPage title="Mon hoc" description="Tao va mo khong gian hoc theo tung mon." />} />
+          <Route path="documents" element={<PlaceholderPage title="Tai lieu" description="Quan ly tai lieu dang xu ly va san sang de hoc." />} />
+          <Route path="study-sessions" element={<PlaceholderPage title="Phien hoc" description="Hoi dap theo tai lieu va kiem tra nguon trich dan." />} />
+          <Route path="quizzes" element={<PlaceholderPage title="Quiz" description="On tap voi cau hoi duoc tao tu tai lieu mon hoc." />} />
+          <Route path="profile" element={<PlaceholderPage title="Ho so" description="Quan ly tai khoan va tuy chon hoc tap." />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
