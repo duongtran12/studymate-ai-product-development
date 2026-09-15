@@ -7,9 +7,9 @@
 .navigation-list { display:grid; gap:6px; list-style:none; margin:0; padding:0; }
 .navigation-link,.profile-link { border-radius:8px; color:#cbd5e1; display:block; padding:10px 12px; text-decoration:none; }
 .navigation-link:hover,.profile-link:hover,.navigation-link.active,.profile-link.active { background:#26354e; color:#fff; }.profile-link { margin-top:auto; }
-.application-content { padding:clamp(28px,5vw,72px); }.page-section { max-width:800px; }
+.application-content { min-width:0; padding:clamp(28px,5vw,72px); }.page-section { max-width:800px; }
 .eyebrow { color:#087d73; font-size:.82rem; font-weight:700; letter-spacing:.08em; margin:0 0 12px; text-transform:uppercase; }
-h1 { font-size:clamp(2rem,4.3vw,3.6rem); letter-spacing:-.055em; line-height:1.03; margin:0; }
+h1 { font-size:clamp(2rem,4.3vw,3.6rem); letter-spacing:-.055em; line-height:1.03; margin:0; overflow-wrap:anywhere; }
 .page-intro { color:#526075; font-size:1.08rem; line-height:1.65; max-width:660px; }
 .prototype-notice,.empty-state { border-left:4px solid #0c9488; color:#334155; line-height:1.6; margin-top:36px; max-width:650px; padding:16px 18px; background:#e8f5f2; }
 .primary-action { background:#087d73; border-radius:8px; color:#fff; display:inline-block; font-weight:700; margin-top:20px; padding:12px 16px; text-decoration:none; }.mobile-navigation { display:none; }
@@ -33,7 +33,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .auth-switch a { color:#087d73; font-weight:700; }
 @media (max-width:760px) { .auth-layout { display:block; }.auth-context { padding:28px 20px 24px; }.auth-brand { margin-bottom:48px; }.auth-panel { border-left:0; border-top:1px solid #dde2e8; padding:32px 20px 48px; } }
 
-.workspace { display:grid; gap:42px; max-width:1000px; }
+.workspace { display:grid; gap:42px; max-width:1000px; min-width:0; width:100%; }
 .page-header,.section-heading,.continue-row,.course-row,.action-row { align-items:center; display:flex; justify-content:space-between; gap:20px; }
 h2 { font-size:1.35rem; letter-spacing:-.02em; margin:0 0 16px; }
 h3 { font-size:1.08rem; margin:0 0 8px; }
@@ -73,7 +73,7 @@ h3 { font-size:1.08rem; margin:0 0 8px; }
 .row-actions { display:flex; gap:14px; }
 .text-button { background:transparent; border:0; color:#087d73; cursor:pointer; font-weight:700; padding:6px; }
 .text-button.destructive { color:#b42318; }
-@media (max-width:760px) { .upload-zone,.document-row { align-items:stretch; flex-direction:column; }.row-actions { justify-content:flex-end; }.inline-error { margin:-20px 0 0; } }
+@media (max-width:760px) { .upload-zone,.document-row { align-items:stretch; flex-direction:column; max-width:100%; min-width:0; }.upload-zone>div,.document-main>div { min-width:0; overflow-wrap:anywhere; }.row-actions { justify-content:flex-end; }.inline-error { margin:-20px 0 0; } }
 
 .study-workspace { display:grid; gap:26px; max-width:1180px; }
 .study-header { align-items:flex-start; display:flex; gap:20px; justify-content:space-between; }
