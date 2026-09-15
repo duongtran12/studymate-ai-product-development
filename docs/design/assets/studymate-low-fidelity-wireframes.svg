@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1200" viewBox="0 0 1680 1200">
+  <style>
+    .screen { fill:#fff; stroke:#334155; stroke-width:3 } .nav { fill:#e2e8f0; stroke:#334155; stroke-width:2 }
+    .box { fill:#f8fafc; stroke:#64748b; stroke-width:2 } .accent { fill:#dbeafe; stroke:#2563eb; stroke-width:2 }
+    .label { font: 22px Arial, sans-serif; fill:#0f172a } .small { font: 16px Arial, sans-serif; fill:#334155 }
+    .title { font: bold 28px Arial, sans-serif; fill:#0f172a }
+  </style>
+  <rect x="40" y="40" width="760" height="520" rx="12" class="screen"/>
+  <text x="70" y="85" class="title">1. Dashboard</text>
+  <rect x="70" y="110" width="160" height="420" class="nav"/><text x="90" y="155" class="label">StudyMate</text>
+  <text x="90" y="210" class="small">Dashboard</text><text x="90" y="250" class="small">Mon hoc</text><text x="90" y="290" class="small">Tai lieu</text><text x="90" y="330" class="small">Quiz</text>
+  <text x="270" y="150" class="title">Chao Minh</text><text x="270" y="185" class="small">Chon mot mon hoc de tiep tuc.</text>
+  <rect x="610" y="118" width="150" height="44" rx="8" class="accent"/><text x="626" y="147" class="small">+ Tao mon hoc</text>
+  <rect x="270" y="225" width="225" height="135" class="box"/><text x="290" y="265" class="label">Kien truc PM</text><text x="290" y="300" class="small">4 tai lieu - hoc hom qua</text>
+  <rect x="520" y="225" width="225" height="135" class="box"/><text x="540" y="265" class="label">AI Product</text><text x="540" y="300" class="small">2 tai lieu - quiz 70%</text>
+  <rect x="270" y="395" width="475" height="105" class="box"/><text x="290" y="435" class="label">Tiep tuc phien hoc</text><text x="290" y="468" class="small">Hoi dap tu De cuong mon AI Product</text>
+
+  <rect x="880" y="40" width="760" height="520" rx="12" class="screen"/>
+  <text x="910" y="85" class="title">2. Thu vien tai lieu</text>
+  <rect x="910" y="110" width="690" height="105" rx="8" class="accent"/><text x="940" y="155" class="label">Keo PDF/DOCX vao day hoac chon tep</text><text x="940" y="190" class="small">Chi tai lieu mon hoc duoc dung cho hoi dap va quiz.</text>
+  <text x="910" y="260" class="label">Tai lieu cua Kien truc PM</text>
+  <rect x="910" y="285" width="690" height="60" class="box"/><text x="935" y="322" class="small">Bai giang 01.pdf                 SAN SANG</text>
+  <rect x="910" y="355" width="690" height="60" class="box"/><text x="935" y="392" class="small">Chu de microservice.docx        DANG XU LY</text>
+  <rect x="910" y="425" width="690" height="60" class="box"/><text x="935" y="462" class="small">Tai lieu cu.pdf                 THAT BAI - Thu lai</text>
+
+  <rect x="40" y="640" width="760" height="520" rx="12" class="screen"/>
+  <text x="70" y="685" class="title">3. Phien hoc va hoi dap</text>
+  <rect x="70" y="710" width="690" height="55" class="nav"/><text x="95" y="745" class="small">Ngu canh: Bai giang 01.pdf  x     Chu de microservice.docx  x</text>
+  <rect x="70" y="795" width="690" height="90" class="box"/><text x="95" y="830" class="small">Ban: Dependency injection la gi?</text>
+  <rect x="70" y="905" width="690" height="135" class="box"/><text x="95" y="940" class="small">StudyMate: Dependency injection la cach mot doi tuong nhan</text><text x="95" y="968" class="small">phu thuoc tu ben ngoai thay vi tu tao truc tiep.</text>
+  <rect x="95" y="985" width="300" height="35" class="accent"/><text x="110" y="1009" class="small">Nguon: Bai giang 01.pdf, trang 12</text>
+  <rect x="70" y="1070" width="570" height="48" class="box"/><text x="90" y="1101" class="small">Dat cau hoi tu tai lieu da chon...</text><rect x="655" y="1070" width="105" height="48" class="accent"/><text x="684" y="1101" class="small">Gui</text>
+
+  <rect x="880" y="640" width="760" height="520" rx="12" class="screen"/>
+  <text x="910" y="685" class="title">4. Quiz tu tai lieu</text>
+  <text x="910" y="725" class="small">Cau 2 / 5                              Tien do: 40%</text>
+  <rect x="910" y="750" width="690" height="85" class="box"/><text x="935" y="790" class="label">Muc dich cua dependency injection la gi?</text>
+  <rect x="910" y="865" width="690" height="48" class="box"/><text x="935" y="896" class="small">A. Tang phu thuoc giua cac lop</text>
+  <rect x="910" y="925" width="690" height="48" class="accent"/><text x="935" y="956" class="small">B. Cung cap phu thuoc tu ben ngoai</text>
+  <rect x="910" y="985" width="690" height="48" class="box"/><text x="935" y="1016" class="small">C. Xoa toan bo interface</text>
+  <rect x="1445" y="1080" width="155" height="48" class="accent"/><text x="1480" y="1111" class="small">Nop bai</text>
+</svg>
