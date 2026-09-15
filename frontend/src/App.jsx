@@ -7,6 +7,7 @@ import StudySessionPage from "./pages/StudySessionPage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import QuizPage from "./pages/QuizPage";
 import RegisterPage from "./pages/RegisterPage";
 
 export default function App() {
@@ -23,7 +24,8 @@ export default function App() {
           <Route path="courses/:courseId/documents" element={<DocumentLibraryPage />} />
           <Route path="study-sessions" element={<StudySessionPage />} />
           <Route path="study/:sessionId" element={<StudySessionPage />} />
-          <Route path="quizzes" element={<PlaceholderPage title="Quiz" description="On tap voi cau hoi duoc tao tu tai lieu mon hoc." />} />
+          <Route path="quizzes" element={<QuizPage />} />
+          <Route path="quizzes/new" element={<QuizPage />} />
           <Route path="profile" element={<PlaceholderPage title="Ho so" description="Quan ly tai khoan va tuy chon hoc tap." />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
