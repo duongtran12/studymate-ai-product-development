@@ -3,6 +3,7 @@ import AppLayout from "./layouts/AppLayout";
 import CourseOverviewPage from "./pages/CourseOverviewPage";
 import DashboardPage from "./pages/DashboardPage";
 import DocumentLibraryPage from "./pages/DocumentLibraryPage";
+import StudySessionPage from "./pages/StudySessionPage";
 import LoginPage from "./pages/LoginPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -20,7 +21,8 @@ export default function App() {
           <Route path="courses/:courseId" element={<CourseOverviewPage />} />
           <Route path="documents" element={<DocumentLibraryPage />} />
           <Route path="courses/:courseId/documents" element={<DocumentLibraryPage />} />
-          <Route path="study-sessions" element={<PlaceholderPage title="Phien hoc" description="Hoi dap theo tai lieu va kiem tra nguon trich dan." />} />
+          <Route path="study-sessions" element={<StudySessionPage />} />
+          <Route path="study/:sessionId" element={<StudySessionPage />} />
           <Route path="quizzes" element={<PlaceholderPage title="Quiz" description="On tap voi cau hoi duoc tao tu tai lieu mon hoc." />} />
           <Route path="profile" element={<PlaceholderPage title="Ho so" description="Quan ly tai khoan va tuy chon hoc tap." />} />
           <Route path="*" element={<NotFoundPage />} />
