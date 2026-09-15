@@ -52,3 +52,25 @@ h3 { font-size:1.08rem; margin:0 0 8px; }
 .modal input { border:1px solid #b9c2cf; border-radius:8px; padding:12px; }
 .modal .action-row { justify-content:flex-end; margin-top:14px; }
 @media (max-width:760px) { .page-header,.continue-row,.course-row { align-items:flex-start; flex-direction:column; }.page-header .button,.course-row .button { width:100%; text-align:center; }.workspace { gap:34px; } }
+
+.upload-zone { align-items:center; background:#fff; border:1px dashed #93a0b2; border-radius:10px; display:flex; gap:24px; justify-content:space-between; padding:24px; transition:border-color .15s,background .15s; }
+.upload-zone.is-dragging { background:#e8f5f2; border-color:#087d73; }
+.upload-zone h2 { margin-bottom:6px; }
+.upload-zone p { color:#526075; margin:0; }
+.visually-hidden { height:1px; margin:-1px; overflow:hidden; padding:0; position:absolute; width:1px; clip:rect(0 0 0 0); }
+.inline-error { background:#fff1f0; border-left:4px solid #b42318; color:#8f1d16; margin:-24px 0 0; padding:13px 15px; }
+.document-list { border-bottom:1px solid #dde2e8; }
+.document-row { align-items:center; background:#fff; border-top:1px solid #dde2e8; display:flex; gap:20px; justify-content:space-between; padding:20px; }
+.document-main { align-items:flex-start; display:flex; gap:14px; min-width:0; }
+.document-main h3 { overflow-wrap:anywhere; }
+.document-main p { color:#526075; font-size:.9rem; margin:0 0 9px; }
+.document-main small { color:#667085; display:block; line-height:1.45; margin-top:5px; }
+.status-marker { border-radius:50%; flex:0 0 10px; height:10px; margin-top:5px; width:10px; }
+.status-label { font-size:.82rem; font-weight:800; }
+.status-ready { color:#087d73; }.status-marker.status-ready { background:#087d73; }
+.status-processing,.status-pending { color:#9a6700; }.status-marker.status-processing,.status-marker.status-pending { background:#c88a13; }
+.status-failed { color:#b42318; }.status-marker.status-failed { background:#b42318; }
+.row-actions { display:flex; gap:14px; }
+.text-button { background:transparent; border:0; color:#087d73; cursor:pointer; font-weight:700; padding:6px; }
+.text-button.destructive { color:#b42318; }
+@media (max-width:760px) { .upload-zone,.document-row { align-items:stretch; flex-direction:column; }.row-actions { justify-content:flex-end; }.inline-error { margin:-20px 0 0; } }
