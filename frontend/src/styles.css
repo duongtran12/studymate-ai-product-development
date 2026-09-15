@@ -32,3 +32,23 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .auth-switch { color:#526075; margin:14px 0 0; text-align:center; }
 .auth-switch a { color:#087d73; font-weight:700; }
 @media (max-width:760px) { .auth-layout { display:block; }.auth-context { padding:28px 20px 24px; }.auth-brand { margin-bottom:48px; }.auth-panel { border-left:0; border-top:1px solid #dde2e8; padding:32px 20px 48px; } }
+
+.workspace { display:grid; gap:42px; max-width:1000px; }
+.page-header,.section-heading,.continue-row,.course-row,.action-row { align-items:center; display:flex; justify-content:space-between; gap:20px; }
+h2 { font-size:1.35rem; letter-spacing:-.02em; margin:0 0 16px; }
+h3 { font-size:1.08rem; margin:0 0 8px; }
+.section-heading span,.course-row span { color:#667085; font-size:.88rem; }
+.continue-row { background:#e8f5f2; border:1px solid #b7ded9; border-radius:10px; padding:18px 20px; }
+.continue-row p,.course-row p { color:#526075; margin:7px 0 0; }
+.text-link { color:#087d73; font-weight:700; text-decoration:none; white-space:nowrap; }
+.course-list { border-bottom:1px solid #dde2e8; }
+.course-row { border-top:1px solid #dde2e8; padding:22px 0; }
+.button-secondary { background:#fff; border:1px solid #b9c2cf; color:#233047; text-decoration:none; }
+.modal-backdrop { align-items:center; background:rgba(23,32,51,.55); display:flex; inset:0; justify-content:center; padding:20px; position:fixed; z-index:30; }
+.modal { background:#fff; border-radius:12px; box-shadow:0 20px 60px rgba(23,32,51,.22); max-width:480px; padding:28px; width:100%; }
+.modal p { color:#526075; }
+.modal form { display:grid; gap:10px; }
+.modal label { font-weight:700; }
+.modal input { border:1px solid #b9c2cf; border-radius:8px; padding:12px; }
+.modal .action-row { justify-content:flex-end; margin-top:14px; }
+@media (max-width:760px) { .page-header,.continue-row,.course-row { align-items:flex-start; flex-direction:column; }.page-header .button,.course-row .button { width:100%; text-align:center; }.workspace { gap:34px; } }
