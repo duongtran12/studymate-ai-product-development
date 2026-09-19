@@ -1,70 +1,22 @@
-import { useRef, useState } from "react";
-import { useParams } from "react-router-dom";
-import { documentStatuses, initialDocuments } from "../mocks/documents";
+import { useState } from "react";
 
-const maxFileSize = 10 * 1024 * 1024;
-const acceptedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-
-function formatSize(bytes) {
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
-}
+const initialDocuments = [
+  { id: 1, name: "Bai giang 01.pdf", size: "2.4 MB", status: "ready" },
+  { id: 2, name: "Chu de microservice.docx", size: "860 KB", status: "processing" },
+  { id: 3, name: "Tai lieu cu.pdf", size: "1.1 MB", status: "failed" },
+];
+const statusLabels = { pending: "Cho xu ly", processing: "Dang xu ly", ready: "San sang", failed: "That bai" };
 
 export default function DocumentLibraryPage() {
-  const { courseId = "lap-trinh-web" } = useParams();
-  const inputRef = useRef(null);
   const [documents, setDocuments] = useState(initialDocuments);
-  const [uploadError, setUploadError] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
-
-  function addFile(file) {
-    setUploadError("");
+  const [notice, setNotice] = useState("");
+  function upload(file) {
     if (!file) return;
-    const extension = file.name.split(".").pop()?.toLowerCase();
-    if (!acceptedTypes.includes(file.type) && !["pdf", "docx"].includes(extension)) {
-      setUploadError("Chỉ nhận file PDF hoặc DOCX. Hãy chọn lại đúng định dạng.");
-      return;
-    }
-    if (file.size > maxFileSize) {
-      setUploadError("File vượt quá 10 MB. Hãy nén file hoặc chọn tài liệu nhỏ hơn.");
-      return;
-    }
-    const id = Date.now();
-    const nextDocument = { id, name: file.name, type: extension?.toUpperCase(), size: formatSize(file.size), uploadedAt: "Hôm nay", status: "pending" };
-    setDocuments((current) => [nextDocument, ...current]);
-    window.setTimeout(() => setDocuments((current) => current.map((item) => item.id === id ? { ...item, status: "processing" } : item)), 550);
-    window.setTimeout(() => setDocuments((current) => current.map((item) => item.id === id ? { ...item, status: "ready" } : item)), 1600);
+    const valid = file.name.toLowerCase().endsWith(".pdf") || file.name.toLowerCase().endsWith(".docx");
+    if (!valid) return setNotice("Chi ho tro tep PDF hoac DOCX. Hay chon mot tep khac.");
+    setDocuments([{ id: Date.now(), name: file.name, size: `${Math.max(1, Math.round(file.size / 1024))} KB`, status: "pending" }, ...documents]);
+    setNotice("Tep da duoc them vao hang doi. Prototype khong trich xuat noi dung that.");
   }
-
-  function removeDocument(document) {
-    if (window.confirm(`Xóa “${document.name}”? Tài liệu sẽ không còn dùng được trong các phiên học mới.`)) {
-      setDocuments((current) => current.filter((item) => item.id !== document.id));
-    }
-  }
-
-  function retryDocument(id) {
-    setDocuments((current) => current.map((item) => item.id === id ? { ...item, status: "processing" } : item));
-    window.setTimeout(() => setDocuments((current) => current.map((item) => item.id === id ? { ...item, status: "ready" } : item)), 1200);
-  }
-
-  return (
-    <section className="workspace document-workspace" aria-labelledby="documents-title">
-      <header><p className="eyebrow">Lập trình Web · Tài liệu</p><h1 id="documents-title">Thư viện tài liệu</h1><p className="page-intro">Tải PDF hoặc DOCX lên môn học. Chỉ tài liệu ở trạng thái Sẵn sàng mới có thể dùng trong chat và quiz.</p></header>
-
-      <section className={`upload-zone ${isDragging ? "is-dragging" : ""}`} aria-labelledby="upload-title" onDragOver={(event) => { event.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)} onDrop={(event) => { event.preventDefault(); setIsDragging(false); addFile(event.dataTransfer.files[0]); }}>
-        <div><h2 id="upload-title">Thêm tài liệu</h2><p>Kéo thả vào đây hoặc chọn file từ máy. PDF, DOCX · tối đa 10 MB.</p></div>
-        <button className="button button-secondary" type="button" onClick={() => inputRef.current?.click()}>Chọn file</button>
-        <input ref={inputRef} className="visually-hidden" type="file" accept=".pdf,.docx" onChange={(event) => { addFile(event.target.files[0]); event.target.value = ""; }} />
-      </section>
-      {uploadError && <p className="inline-error" role="alert">{uploadError}</p>}
-
-      <section aria-labelledby="library-title">
-        <div className="section-heading"><h2 id="library-title">Tài liệu trong môn học</h2><span>{documents.length} file</span></div>
-        <div className="document-list">{documents.map((document) => {
-          const status = documentStatuses[document.status];
-          return <article className="document-row" key={document.id}><div className="document-main"><div className={`status-marker status-${document.status}`} aria-hidden="true" /><div><h3>{document.name}</h3><p>{document.type} · {document.size} · tải lên {document.uploadedAt}</p><span className={`status-label status-${document.status}`}>{status.label}</span><small>{status.detail}</small></div></div><div className="row-actions">{document.status === "failed" && <button className="text-button" onClick={() => retryDocument(document.id)}>Thử lại</button>}<button className="text-button destructive" onClick={() => removeDocument(document)}>Xóa</button></div></article>;
-        })}</div>
-      </section>
-      <p className="visually-hidden">Mã môn học hiện tại: {courseId}</p>
-    </section>
-  );
+  function removeDocument(id) { if (window.confirm("Xoa tai lieu nay khoi thu vien?")) setDocuments(documents.filter((document) => document.id !== id)); }
+  return <section className="page-section" aria-labelledby="documents-title"><p className="eyebrow">Kien truc phan mem</p><h1 id="documents-title">Tai lieu mon hoc</h1><p className="page-intro">Tai lieu san sang co the duoc chon lam ngu canh cho hoi dap va quiz.</p><label className="upload-zone" htmlFor="document-upload"><strong>Chon tep PDF hoac DOCX</strong><span>Keo tep vao day hoac bam de chon. Tinh trang xu ly se hien thi ro rang.</span><input id="document-upload" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => upload(event.target.files?.[0])} /></label>{notice && <p className="upload-notice" role="status">{notice}</p>}<div className="document-list">{documents.map((document) => <article className="document-row" key={document.id}><div><h2>{document.name}</h2><p>{document.size}</p></div><div className="document-actions"><span className={`status-badge status-${document.status}`}>{statusLabels[document.status]}</span>{document.status === "processing" && <span className="status-help">Dang trich xuat noi dung de chuan bi hoi dap.</span>}{document.status === "failed" && <span className="status-help">Thu lai voi tep PDF/DOCX hop le.</span>}<button className="text-button danger" onClick={() => removeDocument(document.id)}>Xoa</button></div></article>)}</div></section>;
 }
