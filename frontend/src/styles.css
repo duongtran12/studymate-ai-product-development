@@ -7,9 +7,9 @@
 .navigation-list { display:grid; gap:6px; list-style:none; margin:0; padding:0; }
 .navigation-link,.profile-link { border-radius:8px; color:#cbd5e1; display:block; padding:10px 12px; text-decoration:none; }
 .navigation-link:hover,.profile-link:hover,.navigation-link.active,.profile-link.active { background:#26354e; color:#fff; }.profile-link { margin-top:auto; }
-.application-content { padding:clamp(28px,5vw,72px); }.page-section { max-width:800px; }
+.application-content { min-width:0; padding:clamp(28px,5vw,72px); }.page-section { max-width:800px; }
 .eyebrow { color:#087d73; font-size:.82rem; font-weight:700; letter-spacing:.08em; margin:0 0 12px; text-transform:uppercase; }
-h1 { font-size:clamp(2rem,4.3vw,3.6rem); letter-spacing:-.055em; line-height:1.03; margin:0; }
+h1 { font-size:clamp(2rem,4.3vw,3.6rem); letter-spacing:-.055em; line-height:1.03; margin:0; overflow-wrap:anywhere; }
 .page-intro { color:#526075; font-size:1.08rem; line-height:1.65; max-width:660px; }
 .page-heading { align-items:flex-start; display:flex; gap:24px; justify-content:space-between; }.page-heading .primary-button { flex:0 0 auto; margin-top:20px; }.inline-form { align-items:end; background:#fff; border:1px solid #d8dde6; display:flex; gap:12px; margin-top:28px; padding:18px; }.inline-form label { font-weight:700; }.inline-form input { border:1px solid #94a3b8; border-radius:8px; flex:1; font:inherit; padding:11px; }.course-area,.continue-study { margin-top:42px; }.course-area h2,.continue-study h2 { font-size:1.22rem; }.course-list { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); }.course-card { background:#fff; border:1px solid #d8dde6; border-radius:12px; padding:20px; text-decoration:none; transition:border-color .15s,transform .15s; }.course-card:hover { border-color:#087d73; transform:translateY(-2px); }.course-card h3 { margin:0 0 10px; }.course-card p,.course-card span { color:#526075; font-size:.9rem; }.continue-study { background:#e8f5f2; border-left:4px solid #0c9488; padding:20px; }.text-action { color:#087d73; font-weight:700; }
 .prototype-notice,.empty-state { border-left:4px solid #0c9488; color:#334155; line-height:1.6; margin-top:36px; max-width:650px; padding:16px 18px; background:#e8f5f2; }

@@ -7,6 +7,8 @@ import StudySessionPage from "./pages/StudySessionPage";
 import QuizPage from "./pages/QuizPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import QuizPage from "./pages/QuizPage";
+import RegisterPage from "./pages/RegisterPage";
 
 export default function App() {
   return (
