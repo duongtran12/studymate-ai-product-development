@@ -1,22 +1,184 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  deleteDocument,
+  getCourses,
+  getDocuments,
+  uploadDocument,
+} from "../api/documentLibraryApi";
 
-const initialDocuments = [
-  { id: 1, name: "Bai giang 01.pdf", size: "2.4 MB", status: "ready" },
-  { id: 2, name: "Chu de microservice.docx", size: "860 KB", status: "processing" },
-  { id: 3, name: "Tai lieu cu.pdf", size: "1.1 MB", status: "failed" },
-];
-const statusLabels = { pending: "Cho xu ly", processing: "Dang xu ly", ready: "San sang", failed: "That bai" };
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const statusLabels = {
+  uploaded: "Đã tải lên",
+  processing: "Đang xử lý",
+  ready: "Sẵn sàng",
+  failed: "Thất bại",
+};
+
+function formatFileSize(bytes) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function validateFile(file) {
+  const extension = file.name.toLowerCase().split(".").pop();
+  if (!["pdf", "docx"].includes(extension)) return "Chỉ hỗ trợ tệp PDF hoặc DOCX.";
+  if (file.size > MAX_FILE_SIZE) return "Tệp không được lớn hơn 10 MB.";
+  return "";
+}
 
 export default function DocumentLibraryPage() {
-  const [documents, setDocuments] = useState(initialDocuments);
+  const [courses, setCourses] = useState([]);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [documents, setDocuments] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  function upload(file) {
-    if (!file) return;
-    const valid = file.name.toLowerCase().endsWith(".pdf") || file.name.toLowerCase().endsWith(".docx");
-    if (!valid) return setNotice("Chi ho tro tep PDF hoac DOCX. Hay chon mot tep khac.");
-    setDocuments([{ id: Date.now(), name: file.name, size: `${Math.max(1, Math.round(file.size / 1024))} KB`, status: "pending" }, ...documents]);
-    setNotice("Tep da duoc them vao hang doi. Prototype khong trich xuat noi dung that.");
+  const fileInput = useRef(null);
+
+  const loadCourses = useCallback(async (signal) => {
+    setLoadingCourses(true);
+    setError("");
+    try {
+      const result = await getCourses(signal);
+      setCourses(result);
+      setSelectedCourseId((current) => current || (result[0]?.id ? String(result[0].id) : ""));
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") setError(requestError.message);
+    } finally {
+      if (!signal?.aborted) setLoadingCourses(false);
+    }
+  }, []);
+
+  const loadDocuments = useCallback(async (courseId, signal) => {
+    if (!courseId) {
+      setDocuments([]);
+      return;
+    }
+    setLoadingDocuments(true);
+    setError("");
+    try {
+      setDocuments(await getDocuments(courseId, signal));
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") setError(requestError.message);
+    } finally {
+      if (!signal?.aborted) setLoadingDocuments(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadCourses(controller.signal);
+    return () => controller.abort();
+  }, [loadCourses]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadDocuments(selectedCourseId, controller.signal);
+    return () => controller.abort();
+  }, [loadDocuments, selectedCourseId]);
+
+  async function upload(file) {
+    if (!file || !selectedCourseId) return;
+    const validationError = validateFile(file);
+    if (validationError) {
+      setNotice("");
+      setError(validationError);
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+    setNotice("");
+    try {
+      const document = await uploadDocument(selectedCourseId, file);
+      setDocuments((current) => [document, ...current]);
+      setNotice(`Đã tải lên “${document.fileName}”.`);
+      if (fileInput.current) fileInput.current.value = "";
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setUploading(false);
+    }
   }
-  function removeDocument(id) { if (window.confirm("Xoa tai lieu nay khoi thu vien?")) setDocuments(documents.filter((document) => document.id !== id)); }
-  return <section className="page-section" aria-labelledby="documents-title"><p className="eyebrow">Kien truc phan mem</p><h1 id="documents-title">Tai lieu mon hoc</h1><p className="page-intro">Tai lieu san sang co the duoc chon lam ngu canh cho hoi dap va quiz.</p><label className="upload-zone" htmlFor="document-upload"><strong>Chon tep PDF hoac DOCX</strong><span>Keo tep vao day hoac bam de chon. Tinh trang xu ly se hien thi ro rang.</span><input id="document-upload" type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => upload(event.target.files?.[0])} /></label>{notice && <p className="upload-notice" role="status">{notice}</p>}<div className="document-list">{documents.map((document) => <article className="document-row" key={document.id}><div><h2>{document.name}</h2><p>{document.size}</p></div><div className="document-actions"><span className={`status-badge status-${document.status}`}>{statusLabels[document.status]}</span>{document.status === "processing" && <span className="status-help">Dang trich xuat noi dung de chuan bi hoi dap.</span>}{document.status === "failed" && <span className="status-help">Thu lai voi tep PDF/DOCX hop le.</span>}<button className="text-button danger" onClick={() => removeDocument(document.id)}>Xoa</button></div></article>)}</div></section>;
+
+  async function removeDocument(document) {
+    if (!window.confirm(`Xóa “${document.fileName}” khỏi thư viện?`)) return;
+    setDeletingId(document.id);
+    setError("");
+    try {
+      await deleteDocument(selectedCourseId, document.id);
+      setDocuments((current) => current.filter((item) => item.id !== document.id));
+      setNotice(`Đã xóa “${document.fileName}”.`);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  const selectedCourse = courses.find((course) => String(course.id) === selectedCourseId);
+  const busy = loadingCourses || loadingDocuments;
+
+  return (
+    <section className="page-section" aria-labelledby="documents-title">
+      <p className="eyebrow">{selectedCourse?.name ?? "Thư viện học tập"}</p>
+      <h1 id="documents-title">Tài liệu môn học</h1>
+      <p className="page-intro">Tải tài liệu theo từng môn học để chuẩn bị ngữ cảnh cho hỏi đáp và quiz.</p>
+
+      <label className="course-filter">
+        <span>Lọc theo môn học</span>
+        <select
+          value={selectedCourseId}
+          onChange={(event) => {
+            setSelectedCourseId(event.target.value);
+            setNotice("");
+          }}
+          disabled={loadingCourses || courses.length === 0}
+        >
+          {courses.length === 0 && <option value="">Chưa có môn học</option>}
+          {courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}
+        </select>
+      </label>
+
+      <label className={`upload-zone ${!selectedCourseId || uploading ? "upload-zone-disabled" : ""}`} htmlFor="document-upload">
+        <strong>{uploading ? "Đang tải lên…" : "Chọn tệp PDF hoặc DOCX"}</strong>
+        <span>Tối đa 10 MB. Tệp được lưu trong môn học đang chọn.</span>
+        <input
+          ref={fileInput}
+          id="document-upload"
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          disabled={!selectedCourseId || uploading}
+          onChange={(event) => upload(event.target.files?.[0])}
+        />
+      </label>
+
+      {error && <div className="request-message request-error" role="alert"><span>{error}</span><button className="text-button" onClick={() => selectedCourseId ? loadDocuments(selectedCourseId) : loadCourses()}>Thử lại</button></div>}
+      {notice && <p className="request-message request-success" role="status">{notice}</p>}
+
+      {busy ? (
+        <p className="loading-state" role="status">Đang tải dữ liệu…</p>
+      ) : courses.length === 0 ? (
+        <p className="empty-state">Bạn chưa có môn học. Hãy tạo môn học trước khi tải tài liệu.</p>
+      ) : documents.length === 0 ? (
+        <p className="empty-state">Môn học này chưa có tài liệu. Hãy tải lên tệp đầu tiên.</p>
+      ) : (
+        <div className="document-list">
+          {documents.map((document) => {
+            const status = document.processingStatus.toLowerCase();
+            return <article className="document-row" key={document.id}>
+              <div><h2>{document.fileName}</h2><p>{formatFileSize(document.fileSizeBytes)} · {new Date(document.createdAt).toLocaleDateString("vi-VN")}</p></div>
+              <div className="document-actions">
+                <span className={`status-badge status-${status}`}>{statusLabels[status] ?? document.processingStatus}</span>
+                <button className="text-button danger" disabled={deletingId === document.id} onClick={() => removeDocument(document)}>{deletingId === document.id ? "Đang xóa…" : "Xóa"}</button>
+              </div>
+            </article>;
+          })}
+        </div>
+      )}
+    </section>
+  );
 }
