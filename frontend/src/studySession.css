@@ -1,0 +1,10 @@
+.document-choice span { display: grid; gap: 0.15rem; }
+.document-choice small { color: #64748b; font-size: 0.72rem; }
+.context-control { display: block; font-weight: 700; margin: 1rem 0 0.35rem; }
+.context-panel select { background: #fff; border: 1px solid #94a3b8; border-radius: 8px; color: #172033; font: inherit; padding: 0.7rem; width: 100%; }
+.context-help { color: #64748b; font-size: 0.82rem; line-height: 1.5; }
+.chat-empty { color: #64748b; margin: auto; max-width: 34rem; padding: 2rem; text-align: center; }
+.grounding-status { color: #64748b; display: block; font-weight: 700; margin-top: 0.65rem; }
+.citation strong,
+.citation span { display: block; }
+.citation span { margin-top: 0.25rem; }
