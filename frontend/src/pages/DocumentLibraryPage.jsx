@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   deleteDocument,
   getCourses,
@@ -27,8 +28,10 @@ function validateFile(file) {
 }
 
 export default function DocumentLibraryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialCourseId = useRef(searchParams.get("course") ?? "");
   const [courses, setCourses] = useState([]);
-  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId.current);
   const [documents, setDocuments] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
@@ -44,7 +47,11 @@ export default function DocumentLibraryPage() {
     try {
       const result = await getCourses(signal);
       setCourses(result);
-      setSelectedCourseId((current) => current || (result[0]?.id ? String(result[0].id) : ""));
+      setSelectedCourseId((current) => {
+        const preferred = current || initialCourseId.current;
+        if (result.some((course) => String(course.id) === preferred)) return preferred;
+        return result[0]?.id ? String(result[0].id) : "";
+      });
     } catch (requestError) {
       if (requestError.name !== "AbortError") setError(requestError.message);
     } finally {
@@ -133,7 +140,9 @@ export default function DocumentLibraryPage() {
         <select
           value={selectedCourseId}
           onChange={(event) => {
-            setSelectedCourseId(event.target.value);
+            const courseId = event.target.value;
+            setSelectedCourseId(courseId);
+            setSearchParams(courseId ? { course: courseId } : {});
             setNotice("");
           }}
           disabled={loadingCourses || courses.length === 0}
