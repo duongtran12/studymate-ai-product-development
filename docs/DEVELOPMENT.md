@@ -25,6 +25,10 @@ Run the Spring Boot application from the repository root:
 
 The application reads the `SPRING_DATASOURCE_*` and `SERVER_PORT` environment variables. Their local examples are listed in `.env.example`; production values must be supplied by the deployment environment and never committed.
 
+The default local `dev` profile creates one `Demo Student` account (`demo@studymate.local`) after Flyway has applied migrations. The React client sends `X-User-Id: 1` by default, so this account lets the Course, Document and Study Session flows work before real authentication is implemented. To use another local account, set `VITE_API_USER_ID` to its database ID before starting Vite.
+
+This bootstrap account is restricted to the `dev` profile. A deployed environment must set an explicit non-dev profile and must not rely on `X-User-Id`; the future authentication module will replace this temporary Chapter 5 mechanism.
+
 ## Frontend
 
 Run the following commands from `frontend/`:
