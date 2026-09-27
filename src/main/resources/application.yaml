@@ -1,6 +1,8 @@
 spring:
   application:
     name: studymate
+  profiles:
+    default: dev
   servlet:
     multipart:
       max-file-size: 10MB
