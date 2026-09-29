@@ -9,11 +9,12 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import com.tritagon.studymate.web.CurrentUserId;
 
 @RestController
 @RequestMapping("/api/v1/courses/{courseId}/documents")
@@ -26,18 +27,18 @@ public class CourseDocumentController {
 	}
 
 	@GetMapping
-	public List<CourseDocumentResponse> list(@RequestHeader("X-User-Id") Long userId, @PathVariable Long courseId) {
+	public List<CourseDocumentResponse> list(@CurrentUserId Long userId, @PathVariable Long courseId) {
 		return documentService.list(userId, courseId);
 	}
 
 	@GetMapping("/{documentId}")
-	public CourseDocumentResponse get(@RequestHeader("X-User-Id") Long userId, @PathVariable Long courseId,
+	public CourseDocumentResponse get(@CurrentUserId Long userId, @PathVariable Long courseId,
 			@PathVariable Long documentId) {
 		return documentService.get(userId, courseId, documentId);
 	}
 
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<CourseDocumentResponse> upload(@RequestHeader("X-User-Id") Long userId,
+	public ResponseEntity<CourseDocumentResponse> upload(@CurrentUserId Long userId,
 			@PathVariable Long courseId, @RequestPart("file") MultipartFile file) {
 		CourseDocumentResponse document = documentService.upload(userId, courseId, file);
 		URI location = URI.create("/api/v1/courses/" + courseId + "/documents/" + document.id());
@@ -45,7 +46,7 @@ public class CourseDocumentController {
 	}
 
 	@DeleteMapping("/{documentId}")
-	public ResponseEntity<Void> delete(@RequestHeader("X-User-Id") Long userId, @PathVariable Long courseId,
+	public ResponseEntity<Void> delete(@CurrentUserId Long userId, @PathVariable Long courseId,
 			@PathVariable Long documentId) {
 		documentService.delete(userId, courseId, documentId);
 		return ResponseEntity.noContent().build();

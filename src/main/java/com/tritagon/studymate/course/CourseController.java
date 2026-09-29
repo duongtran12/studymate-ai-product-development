@@ -10,9 +10,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.tritagon.studymate.web.CurrentUserId;
 
 @RestController
 @RequestMapping("/api/v1/courses")
@@ -25,29 +26,29 @@ public class CourseController {
 	}
 
 	@GetMapping
-	public List<CourseResponse> list(@RequestHeader("X-User-Id") Long userId) {
+	public List<CourseResponse> list(@CurrentUserId Long userId) {
 		return courseService.list(userId);
 	}
 
 	@GetMapping("/{courseId}")
-	public CourseResponse get(@RequestHeader("X-User-Id") Long userId, @PathVariable Long courseId) {
+	public CourseResponse get(@CurrentUserId Long userId, @PathVariable Long courseId) {
 		return courseService.get(userId, courseId);
 	}
 
 	@PostMapping
-	public ResponseEntity<CourseResponse> create(@RequestHeader("X-User-Id") Long userId, @RequestBody CourseWriteRequest request) {
+	public ResponseEntity<CourseResponse> create(@CurrentUserId Long userId, @RequestBody CourseWriteRequest request) {
 		CourseResponse course = courseService.create(userId, request);
 		return ResponseEntity.created(URI.create("/api/v1/courses/" + course.id())).body(course);
 	}
 
 	@PutMapping("/{courseId}")
-	public CourseResponse update(@RequestHeader("X-User-Id") Long userId, @PathVariable Long courseId,
+	public CourseResponse update(@CurrentUserId Long userId, @PathVariable Long courseId,
 			@RequestBody CourseWriteRequest request) {
 		return courseService.update(userId, courseId, request);
 	}
 
 	@DeleteMapping("/{courseId}")
-	public ResponseEntity<Void> delete(@RequestHeader("X-User-Id") Long userId, @PathVariable Long courseId) {
+	public ResponseEntity<Void> delete(@CurrentUserId Long userId, @PathVariable Long courseId) {
 		courseService.delete(userId, courseId);
 		return ResponseEntity.noContent().build();
 	}
