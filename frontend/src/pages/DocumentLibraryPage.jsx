@@ -6,6 +6,7 @@ import {
   getDocuments,
   uploadDocument,
 } from "../api/documentLibraryApi";
+import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const statusLabels = {
@@ -30,74 +31,68 @@ function validateFile(file) {
 export default function DocumentLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialCourseId = useRef(searchParams.get("course") ?? "");
-  const [courses, setCourses] = useState([]);
+  const {
+    data: courses,
+    loading: loadingCourses,
+    error: coursesError,
+    setError: setCoursesError,
+    run: loadCourses,
+    retry: retryCourses,
+    cancel: cancelCourses,
+  } = useAsyncRequest(getCourses, { initialData: [], initialLoading: true });
+  const requestDocuments = useCallback((signal, courseId) => getDocuments(courseId, signal), []);
+  const {
+    data: documents,
+    setData: setDocuments,
+    loading: loadingDocuments,
+    error: documentsError,
+    setError: setDocumentsError,
+    run: loadDocuments,
+    retry: retryDocuments,
+    cancel: cancelDocuments,
+  } = useAsyncRequest(requestDocuments, { initialData: [] });
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId.current);
-  const [documents, setDocuments] = useState([]);
-  const [loadingCourses, setLoadingCourses] = useState(true);
-  const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [error, setError] = useState("");
+  const [mutationError, setMutationError] = useState("");
   const [notice, setNotice] = useState("");
   const fileInput = useRef(null);
 
-  const loadCourses = useCallback(async (signal) => {
-    setLoadingCourses(true);
-    setError("");
-    try {
-      const result = await getCourses(signal);
-      setCourses(result);
-      setSelectedCourseId((current) => {
-        const preferred = current || initialCourseId.current;
-        if (result.some((course) => String(course.id) === preferred)) return preferred;
-        return result[0]?.id ? String(result[0].id) : "";
-      });
-    } catch (requestError) {
-      if (requestError.name !== "AbortError") setError(requestError.message);
-    } finally {
-      if (!signal?.aborted) setLoadingCourses(false);
-    }
-  }, []);
+  useEffect(() => {
+    loadCourses();
+    return cancelCourses;
+  }, [cancelCourses, loadCourses]);
 
-  const loadDocuments = useCallback(async (courseId, signal) => {
-    if (!courseId) {
+  useEffect(() => {
+    setSelectedCourseId((current) => {
+      const preferred = current || initialCourseId.current;
+      if (courses.some((course) => String(course.id) === preferred)) return preferred;
+      return courses[0]?.id ? String(courses[0].id) : "";
+    });
+  }, [courses]);
+
+  useEffect(() => {
+    if (selectedCourseId) loadDocuments(selectedCourseId);
+    else {
+      cancelDocuments();
       setDocuments([]);
-      return;
     }
-    setLoadingDocuments(true);
-    setError("");
-    try {
-      setDocuments(await getDocuments(courseId, signal));
-    } catch (requestError) {
-      if (requestError.name !== "AbortError") setError(requestError.message);
-    } finally {
-      if (!signal?.aborted) setLoadingDocuments(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    loadCourses(controller.signal);
-    return () => controller.abort();
-  }, [loadCourses]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    loadDocuments(selectedCourseId, controller.signal);
-    return () => controller.abort();
-  }, [loadDocuments, selectedCourseId]);
+    return cancelDocuments;
+  }, [cancelDocuments, loadDocuments, selectedCourseId, setDocuments]);
 
   async function upload(file) {
     if (!file || !selectedCourseId) return;
     const validationError = validateFile(file);
     if (validationError) {
       setNotice("");
-      setError(validationError);
+      setMutationError(validationError);
       return;
     }
 
     setUploading(true);
-    setError("");
+    setMutationError("");
+    setCoursesError("");
+    setDocumentsError("");
     setNotice("");
     try {
       const document = await uploadDocument(selectedCourseId, file);
@@ -105,7 +100,7 @@ export default function DocumentLibraryPage() {
       setNotice(`Đã tải lên “${document.fileName}”.`);
       if (fileInput.current) fileInput.current.value = "";
     } catch (requestError) {
-      setError(requestError.message);
+      setMutationError(requestError.message);
     } finally {
       setUploading(false);
     }
@@ -114,13 +109,15 @@ export default function DocumentLibraryPage() {
   async function removeDocument(document) {
     if (!window.confirm(`Xóa “${document.fileName}” khỏi thư viện?`)) return;
     setDeletingId(document.id);
-    setError("");
+    setMutationError("");
+    setCoursesError("");
+    setDocumentsError("");
     try {
       await deleteDocument(selectedCourseId, document.id);
       setDocuments((current) => current.filter((item) => item.id !== document.id));
       setNotice(`Đã xóa “${document.fileName}”.`);
     } catch (requestError) {
-      setError(requestError.message);
+      setMutationError(requestError.message);
     } finally {
       setDeletingId(null);
     }
@@ -128,6 +125,11 @@ export default function DocumentLibraryPage() {
 
   const selectedCourse = courses.find((course) => String(course.id) === selectedCourseId);
   const busy = loadingCourses || loadingDocuments;
+  const error = mutationError || documentsError || coursesError;
+  const retry = coursesError ? retryCourses : documentsError ? retryDocuments : () => {
+    setMutationError("");
+    loadDocuments(selectedCourseId);
+  };
 
   return (
     <section className="page-section" aria-labelledby="documents-title">
@@ -144,6 +146,7 @@ export default function DocumentLibraryPage() {
             setSelectedCourseId(courseId);
             setSearchParams(courseId ? { course: courseId } : {});
             setNotice("");
+            setMutationError("");
           }}
           disabled={loadingCourses || courses.length === 0}
         >
@@ -165,7 +168,7 @@ export default function DocumentLibraryPage() {
         />
       </label>
 
-      {error && <div className="request-message request-error" role="alert"><span>{error}</span><button className="text-button" onClick={() => selectedCourseId ? loadDocuments(selectedCourseId) : loadCourses()}>Thử lại</button></div>}
+      {error && <div className="request-message request-error" role="alert"><span>{error}</span><button className="text-button" onClick={retry}>Thử lại</button></div>}
       {notice && <p className="request-message request-success" role="status">{notice}</p>}
 
       {busy ? (

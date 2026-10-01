@@ -11,3 +11,15 @@ export function createCourse(course) {
     body: JSON.stringify(course),
   });
 }
+
+export function updateCourse(courseId, course) {
+  return apiRequest(`/api/v1/courses/${courseId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(course),
+  });
+}
+
+export function deleteCourse(courseId) {
+  return apiRequest(`/api/v1/courses/${courseId}`, { method: "DELETE" });
+}
