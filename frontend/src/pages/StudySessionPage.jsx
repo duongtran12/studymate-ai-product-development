@@ -8,12 +8,63 @@ import {
   getStudySessions,
   sendStudySessionQuestion,
 } from "../api/studySessionApi";
+import { useAsyncRequest } from "../hooks/useAsyncRequest";
 import "../studySession.css";
 
 const newSessionValue = "";
 
+async function getCourseStudyData(signal, courseId) {
+  const [documents, sessions] = await Promise.all([
+    getDocuments(courseId, signal),
+    getStudySessions(courseId, signal),
+  ]);
+  if (sessions.length === 0) return { documents, sessions, session: null, messages: [] };
+
+  const [session, messages] = await Promise.all([
+    getStudySession(sessions[0].id, signal),
+    getStudySessionMessages(sessions[0].id, signal),
+  ]);
+  return { documents, sessions, session, messages };
+}
+
+async function getSessionStudyData(signal, sessionId) {
+  const [session, messages] = await Promise.all([
+    getStudySession(sessionId, signal),
+    getStudySessionMessages(sessionId, signal),
+  ]);
+  return { session, messages };
+}
+
 export default function StudySessionPage() {
-  const [courses, setCourses] = useState([]);
+  const {
+    data: courses,
+    loading: loadingCourses,
+    error: coursesError,
+    setError: setCoursesError,
+    run: loadCourses,
+    retry: retryCourses,
+    cancel: cancelCourses,
+  } = useAsyncRequest(getCourses, { initialData: [], initialLoading: true });
+  const {
+    data: courseStudyData,
+    setData: setCourseStudyData,
+    loading: loadingCourseData,
+    error: courseDataError,
+    setError: setCourseDataError,
+    run: loadCourseData,
+    retry: retryCourseData,
+    cancel: cancelCourseData,
+  } = useAsyncRequest(getCourseStudyData);
+  const {
+    data: sessionStudyData,
+    setData: setSessionStudyData,
+    loading: loadingSession,
+    error: sessionError,
+    setError: setSessionError,
+    run: loadSessionData,
+    retry: retrySessionData,
+    cancel: cancelSessionData,
+  } = useAsyncRequest(getSessionStudyData);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [documents, setDocuments] = useState([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState([]);
@@ -21,26 +72,27 @@ export default function StudySessionPage() {
   const [activeSessionId, setActiveSessionId] = useState(newSessionValue);
   const [messages, setMessages] = useState([]);
   const [question, setQuestion] = useState("");
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
+  const [mutationError, setMutationError] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController();
-    getCourses(controller.signal)
-      .then((data) => {
-        setCourses(data);
-        setSelectedCourseId(data[0]?.id ? String(data[0].id) : "");
-      })
-      .catch((requestError) => {
-        if (requestError.name !== "AbortError") setError(requestError.message);
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, []);
+    loadCourses();
+    return cancelCourses;
+  }, [cancelCourses, loadCourses]);
 
   useEffect(() => {
+    setSelectedCourseId((current) => {
+      if (courses.some((course) => String(course.id) === current)) return current;
+      return courses[0]?.id ? String(courses[0].id) : "";
+    });
+  }, [courses]);
+
+  useEffect(() => {
+    cancelSessionData();
+    setSessionStudyData(null);
     if (!selectedCourseId) {
+      cancelCourseData();
+      setCourseStudyData(null);
       setDocuments([]);
       setSessions([]);
       setActiveSessionId(newSessionValue);
@@ -48,59 +100,38 @@ export default function StudySessionPage() {
       return undefined;
     }
 
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    Promise.all([
-      getDocuments(selectedCourseId, controller.signal),
-      getStudySessions(selectedCourseId, controller.signal),
-    ])
-      .then(async ([documentData, sessionData]) => {
-        setDocuments(documentData);
-        setSessions(sessionData);
-        if (sessionData.length === 0) {
-          setActiveSessionId(newSessionValue);
-          setSelectedDocumentIds([]);
-          setMessages([]);
-          return;
-        }
-        const firstSession = sessionData[0];
-        const [session, history] = await Promise.all([
-          getStudySession(firstSession.id, controller.signal),
-          getStudySessionMessages(firstSession.id, controller.signal),
-        ]);
-        setActiveSessionId(String(firstSession.id));
-        setSelectedDocumentIds(session.documentIds.map(String));
-        setMessages(history);
-      })
-      .catch((requestError) => {
-        if (requestError.name !== "AbortError") setError(requestError.message);
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [selectedCourseId]);
+    setMutationError("");
+    loadCourseData(selectedCourseId);
+    return cancelCourseData;
+  }, [cancelCourseData, cancelSessionData, loadCourseData, selectedCourseId, setCourseStudyData, setSessionStudyData]);
 
-  async function selectSession(sessionId) {
+  useEffect(() => {
+    if (!courseStudyData) return;
+    setDocuments(courseStudyData.documents);
+    setSessions(courseStudyData.sessions);
+    setMessages(courseStudyData.messages);
+    setActiveSessionId(courseStudyData.session ? String(courseStudyData.session.id) : newSessionValue);
+    setSelectedDocumentIds(courseStudyData.session?.documentIds.map(String) ?? []);
+  }, [courseStudyData]);
+
+  useEffect(() => {
+    if (!sessionStudyData) return;
+    setSelectedDocumentIds(sessionStudyData.session.documentIds.map(String));
+    setMessages(sessionStudyData.messages);
+  }, [sessionStudyData]);
+
+  function selectSession(sessionId) {
     setActiveSessionId(sessionId);
-    setError("");
+    setMutationError("");
+    setSessionError("");
+    setSessionStudyData(null);
     if (!sessionId) {
+      cancelSessionData();
       setSelectedDocumentIds([]);
       setMessages([]);
       return;
     }
-    setLoading(true);
-    try {
-      const [session, history] = await Promise.all([
-        getStudySession(sessionId),
-        getStudySessionMessages(sessionId),
-      ]);
-      setSelectedDocumentIds(session.documentIds.map(String));
-      setMessages(history);
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setLoading(false);
-    }
+    loadSessionData(sessionId);
   }
 
   function toggleDocument(documentId) {
@@ -117,7 +148,10 @@ export default function StudySessionPage() {
     if (!asked || !selectedCourseId || sending) return;
 
     setSending(true);
-    setError("");
+    setMutationError("");
+    setCoursesError("");
+    setCourseDataError("");
+    setSessionError("");
     try {
       let sessionId = activeSessionId;
       if (!sessionId) {
@@ -134,11 +168,15 @@ export default function StudySessionPage() {
       setMessages((current) => [...current, turn.userMessage, turn.assistantMessage]);
       setQuestion("");
     } catch (requestError) {
-      setError(requestError.message);
+      setMutationError(requestError.message);
     } finally {
       setSending(false);
     }
   }
+
+  const loading = loadingCourses || loadingCourseData || loadingSession;
+  const error = mutationError || sessionError || courseDataError || coursesError;
+  const retry = coursesError ? retryCourses : courseDataError ? retryCourseData : sessionError ? retrySessionData : null;
 
   return (
     <section className="study-layout" aria-labelledby="session-title">
@@ -148,13 +186,13 @@ export default function StudySessionPage() {
         <p>Chọn môn học và tài liệu làm phạm vi trả lời cho phiên mới.</p>
 
         <label className="context-control" htmlFor="session-course">Môn học</label>
-        <select id="session-course" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)}>
+        <select id="session-course" value={selectedCourseId} onChange={(event) => setSelectedCourseId(event.target.value)} disabled={loadingCourses}>
           {courses.length === 0 && <option value="">Chưa có môn học</option>}
           {courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}
         </select>
 
         <label className="context-control" htmlFor="saved-session">Phiên học</label>
-        <select id="saved-session" value={activeSessionId} onChange={(event) => selectSession(event.target.value)} disabled={!selectedCourseId}>
+        <select id="saved-session" value={activeSessionId} onChange={(event) => selectSession(event.target.value)} disabled={!selectedCourseId || loadingCourseData || loadingSession}>
           <option value="">+ Tạo phiên học mới</option>
           {sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
         </select>
@@ -173,7 +211,7 @@ export default function StudySessionPage() {
       </aside>
 
       <div className="chat-panel">
-        {error && <div className="request-error" role="alert">{error}</div>}
+        {error && <div className="request-message request-error" role="alert"><span>{error}</span>{retry && <button className="text-button" onClick={retry} type="button">Thử lại</button>}</div>}
         <div className="chat-history" aria-live="polite">
           {loading && <p className="loading-state">Đang tải dữ liệu phiên học...</p>}
           {!loading && messages.length === 0 && (

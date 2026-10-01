@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { createCourse, deleteCourse, getCourses, updateCourse } from "../api/courseApi";
+import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
 const emptyEditValues = { name: "", code: "", description: "" };
 
@@ -13,34 +14,28 @@ function coursePayload(values) {
 }
 
 export default function DashboardPage() {
-  const [courses, setCourses] = useState([]);
+  const {
+    data: courses,
+    setData: setCourses,
+    loading,
+    error,
+    setError,
+    run: loadCourses,
+    retry: retryCourses,
+    cancel: cancelCourses,
+  } = useAsyncRequest(getCourses, { initialData: [], initialLoading: true });
   const [newCourse, setNewCourse] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState(emptyEditValues);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const loadCourses = useCallback(async (signal) => {
-    setLoading(true);
-    setError("");
-    try {
-      setCourses(await getCourses(signal));
-    } catch (requestError) {
-      if (requestError.name !== "AbortError") setError(requestError.message);
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    const controller = new AbortController();
-    loadCourses(controller.signal);
-    return () => controller.abort();
-  }, [loadCourses]);
+    loadCourses();
+    return cancelCourses;
+  }, [cancelCourses, loadCourses]);
 
   async function submitCourse(event) {
     event.preventDefault();
@@ -136,7 +131,7 @@ export default function DashboardPage() {
         </form>
       )}
 
-      {error && <div className="request-message request-error" role="alert"><span>{error}</span><button className="text-button" onClick={() => loadCourses()} type="button">Thử lại</button></div>}
+      {error && <div className="request-message request-error" role="alert"><span>{error}</span><button className="text-button" onClick={retryCourses} type="button">Thử lại</button></div>}
       {notice && <p className="request-message request-success" role="status">{notice}</p>}
 
       <section className="course-area" aria-labelledby="courses-title">
