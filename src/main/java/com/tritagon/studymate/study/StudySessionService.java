@@ -11,7 +11,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.tritagon.studymate.course.CourseNotFoundException;
 import com.tritagon.studymate.course.CourseRepository;
-import com.tritagon.studymate.document.CourseDocument;
 import com.tritagon.studymate.document.CourseDocumentNotFoundException;
 import com.tritagon.studymate.document.CourseDocumentRepository;
 
@@ -25,10 +24,6 @@ public class StudySessionService {
 	private static final String ACTIVE = "ACTIVE";
 	private static final String USER = "USER";
 	private static final String ASSISTANT = "ASSISTANT";
-	private static final String SUPPORTED = "SUPPORTED";
-	private static final String INSUFFICIENT_CONTEXT = "INSUFFICIENT_CONTEXT";
-	private static final String INSUFFICIENT_CONTEXT_MESSAGE =
-			"Chưa đủ căn cứ từ tài liệu đã chọn để trả lời câu hỏi này.";
 	private static final TypeReference<List<CitationResponse>> CITATION_LIST = new TypeReference<>() {
 	};
 
@@ -37,16 +32,19 @@ public class StudySessionService {
 	private final StudySessionRepository sessionRepository;
 	private final StudySessionDocumentRepository sessionDocumentRepository;
 	private final ChatMessageRepository messageRepository;
+	private final GroundedAnswerGenerator groundedAnswerGenerator;
 	private final ObjectMapper objectMapper;
 
 	public StudySessionService(CourseRepository courseRepository, CourseDocumentRepository documentRepository,
 			StudySessionRepository sessionRepository, StudySessionDocumentRepository sessionDocumentRepository,
-			ChatMessageRepository messageRepository, ObjectMapper objectMapper) {
+			ChatMessageRepository messageRepository, GroundedAnswerGenerator groundedAnswerGenerator,
+			ObjectMapper objectMapper) {
 		this.courseRepository = courseRepository;
 		this.documentRepository = documentRepository;
 		this.sessionRepository = sessionRepository;
 		this.sessionDocumentRepository = sessionDocumentRepository;
 		this.messageRepository = messageRepository;
+		this.groundedAnswerGenerator = groundedAnswerGenerator;
 		this.objectMapper = objectMapper;
 	}
 
@@ -96,14 +94,15 @@ public class StudySessionService {
 				null, sessionId, USER, question, null, null, OffsetDateTime.now()));
 
 		List<Long> documentIds = documentIds(sessionId);
-		AssistantDraft draft = createAssistantDraft(session.courseId(), documentIds);
+		GroundedAnswer answer = groundedAnswerGenerator.generate(
+				new GroundedAnswerRequest(question, session.courseId(), documentIds));
 		ChatMessage assistantMessage = messageRepository.save(new ChatMessage(
 				null,
 				sessionId,
 				ASSISTANT,
-				draft.content(),
-				serializeCitations(draft.citations()),
-				draft.groundingStatus(),
+				answer.content(),
+				serializeCitations(answer.citations()),
+				answer.status().name(),
 				OffsetDateTime.now()));
 
 		sessionRepository.save(new StudySession(
@@ -111,25 +110,6 @@ public class StudySessionService {
 				session.createdAt(), OffsetDateTime.now()));
 
 		return new ChatTurnResponse(toMessageResponse(userMessage), toMessageResponse(assistantMessage));
-	}
-
-	private AssistantDraft createAssistantDraft(Long courseId, List<Long> documentIds) {
-		if (documentIds.isEmpty()) {
-			return new AssistantDraft(INSUFFICIENT_CONTEXT_MESSAGE, INSUFFICIENT_CONTEXT, List.of());
-		}
-		Long documentId = documentIds.getFirst();
-		CourseDocument document = documentRepository.findByIdAndCourseId(documentId, courseId)
-				.orElseThrow(() -> new CourseDocumentNotFoundException(documentId));
-		CitationResponse citation = new CitationResponse(
-				document.id(),
-				document.fileName(),
-				"Tài liệu đã chọn",
-				"Citation mô phỏng; nội dung tài liệu chưa được trích xuất ở Chương 5.");
-		return new AssistantDraft(
-				"Đây là phản hồi mô phỏng cho giai đoạn lưu lịch sử hội thoại. "
-						+ "Nội dung AI/RAG sẽ được bổ sung ở giai đoạn tiếp theo.",
-				SUPPORTED,
-				List.of(citation));
 	}
 
 	private StudySessionResponse toSessionResponse(StudySession session) {
@@ -222,6 +202,4 @@ public class StudySessionService {
 		}
 	}
 
-	private record AssistantDraft(String content, String groundingStatus, List<CitationResponse> citations) {
-	}
 }
