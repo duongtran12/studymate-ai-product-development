@@ -12,8 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.tritagon.studymate.course.CourseNotFoundException;
-import com.tritagon.studymate.course.CourseRepository;
+import com.tritagon.studymate.course.CourseAccessService;
 
 @Service
 public class CourseDocumentService {
@@ -24,13 +23,13 @@ public class CourseDocumentService {
 			"application/pdf",
 			"application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
-	private final CourseRepository courseRepository;
+	private final CourseAccessService courseAccessService;
 	private final CourseDocumentRepository documentRepository;
 	private final LocalDocumentStorage storage;
 
-	public CourseDocumentService(CourseRepository courseRepository, CourseDocumentRepository documentRepository,
+	public CourseDocumentService(CourseAccessService courseAccessService, CourseDocumentRepository documentRepository,
 			LocalDocumentStorage storage) {
-		this.courseRepository = courseRepository;
+		this.courseAccessService = courseAccessService;
 		this.documentRepository = documentRepository;
 		this.storage = storage;
 	}
@@ -80,8 +79,7 @@ public class CourseDocumentService {
 	}
 
 	private void ensureOwnedCourse(Long ownerId, Long courseId) {
-		courseRepository.findByIdAndOwnerId(courseId, ownerId)
-				.orElseThrow(() -> new CourseNotFoundException(courseId));
+		courseAccessService.requireOwnedCourse(ownerId, courseId);
 	}
 
 	private CourseDocument findDocument(Long courseId, Long documentId) {

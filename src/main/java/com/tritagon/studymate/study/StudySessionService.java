@@ -9,8 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.tritagon.studymate.course.CourseNotFoundException;
-import com.tritagon.studymate.course.CourseRepository;
+import com.tritagon.studymate.course.CourseAccessService;
 import com.tritagon.studymate.document.CourseDocumentNotFoundException;
 import com.tritagon.studymate.document.CourseDocumentRepository;
 
@@ -27,7 +26,7 @@ public class StudySessionService {
 	private static final TypeReference<List<CitationResponse>> CITATION_LIST = new TypeReference<>() {
 	};
 
-	private final CourseRepository courseRepository;
+	private final CourseAccessService courseAccessService;
 	private final CourseDocumentRepository documentRepository;
 	private final StudySessionRepository sessionRepository;
 	private final StudySessionDocumentRepository sessionDocumentRepository;
@@ -35,11 +34,11 @@ public class StudySessionService {
 	private final GroundedAnswerGenerator groundedAnswerGenerator;
 	private final ObjectMapper objectMapper;
 
-	public StudySessionService(CourseRepository courseRepository, CourseDocumentRepository documentRepository,
+	public StudySessionService(CourseAccessService courseAccessService, CourseDocumentRepository documentRepository,
 			StudySessionRepository sessionRepository, StudySessionDocumentRepository sessionDocumentRepository,
 			ChatMessageRepository messageRepository, GroundedAnswerGenerator groundedAnswerGenerator,
 			ObjectMapper objectMapper) {
-		this.courseRepository = courseRepository;
+		this.courseAccessService = courseAccessService;
 		this.documentRepository = documentRepository;
 		this.sessionRepository = sessionRepository;
 		this.sessionDocumentRepository = sessionDocumentRepository;
@@ -174,8 +173,7 @@ public class StudySessionService {
 	}
 
 	private void ensureOwnedCourse(Long userId, Long courseId) {
-		courseRepository.findByIdAndOwnerId(courseId, userId)
-				.orElseThrow(() -> new CourseNotFoundException(courseId));
+		courseAccessService.requireOwnedCourse(userId, courseId);
 	}
 
 	private StudySession findOwnedSession(Long userId, Long sessionId) {
