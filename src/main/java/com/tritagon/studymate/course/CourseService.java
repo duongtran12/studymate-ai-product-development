@@ -14,10 +14,13 @@ public class CourseService {
 
 	private final CourseRepository courseRepository;
 	private final UserAccountRepository userAccountRepository;
+	private final CourseAccessService courseAccessService;
 
-	public CourseService(CourseRepository courseRepository, UserAccountRepository userAccountRepository) {
+	public CourseService(CourseRepository courseRepository, UserAccountRepository userAccountRepository,
+			CourseAccessService courseAccessService) {
 		this.courseRepository = courseRepository;
 		this.userAccountRepository = userAccountRepository;
+		this.courseAccessService = courseAccessService;
 	}
 
 	public List<CourseResponse> list(Long ownerId) {
@@ -25,7 +28,7 @@ public class CourseService {
 	}
 
 	public CourseResponse get(Long ownerId, Long courseId) {
-		return CourseResponse.from(findOwnedCourse(ownerId, courseId));
+		return CourseResponse.from(courseAccessService.requireOwnedCourse(ownerId, courseId));
 	}
 
 	public CourseResponse create(Long ownerId, CourseWriteRequest request) {
@@ -39,18 +42,14 @@ public class CourseService {
 
 	public CourseResponse update(Long ownerId, Long courseId, CourseWriteRequest request) {
 		validate(request);
-		Course current = findOwnedCourse(ownerId, courseId);
+		Course current = courseAccessService.requireOwnedCourse(ownerId, courseId);
 		Course saved = courseRepository.save(new Course(current.id(), current.ownerId(), request.name().trim(),
 				normalize(request.code()), normalize(request.description()), current.createdAt(), OffsetDateTime.now()));
 		return CourseResponse.from(saved);
 	}
 
 	public void delete(Long ownerId, Long courseId) {
-		courseRepository.delete(findOwnedCourse(ownerId, courseId));
-	}
-
-	private Course findOwnedCourse(Long ownerId, Long courseId) {
-		return courseRepository.findByIdAndOwnerId(courseId, ownerId).orElseThrow(() -> new CourseNotFoundException(courseId));
+		courseRepository.delete(courseAccessService.requireOwnedCourse(ownerId, courseId));
 	}
 
 	private void ensureUserExists(Long ownerId) {
