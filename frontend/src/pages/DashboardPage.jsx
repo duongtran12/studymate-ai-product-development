@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import { createCourse, deleteCourse, getCourses, updateCourse } from "../api/courseApi";
+import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
+import { COURSE_FIELD_LIMITS, firstValidationError, validateCourse } from "../validation/formValidation";
 
 const emptyEditValues = { name: "", code: "", description: "" };
 
@@ -18,8 +21,8 @@ export default function DashboardPage() {
     data: courses,
     setData: setCourses,
     loading,
-    error,
-    setError,
+    error: loadError,
+    setError: setLoadError,
     run: loadCourses,
     retry: retryCourses,
     cancel: cancelCourses,
@@ -30,6 +33,7 @@ export default function DashboardPage() {
   const [editValues, setEditValues] = useState(emptyEditValues);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [mutationError, setMutationError] = useState("");
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
@@ -40,10 +44,15 @@ export default function DashboardPage() {
   async function submitCourse(event) {
     event.preventDefault();
     const name = newCourse.trim();
-    if (!name || submitting) return;
+    const validationError = firstValidationError(validateCourse({ name, code: "", description: "" }));
+    if (validationError || submitting) {
+      if (validationError) setMutationError(validationError);
+      return;
+    }
 
     setSubmitting(true);
-    setError("");
+    setLoadError("");
+    setMutationError("");
     setNotice("");
     try {
       const createdCourse = await createCourse({ name, code: null, description: null });
@@ -52,7 +61,7 @@ export default function DashboardPage() {
       setShowForm(false);
       setNotice(`Đã tạo môn học “${createdCourse.name}”.`);
     } catch (requestError) {
-      setError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setSubmitting(false);
     }
@@ -61,23 +70,29 @@ export default function DashboardPage() {
   function startEditing(course) {
     setEditingId(course.id);
     setEditValues({ name: course.name, code: course.code ?? "", description: course.description ?? "" });
-    setError("");
+    setLoadError("");
+    setMutationError("");
     setNotice("");
   }
 
   function cancelEditing() {
     setEditingId(null);
     setEditValues(emptyEditValues);
-    setError("");
+    setMutationError("");
   }
 
   async function submitEdit(event, courseId) {
     event.preventDefault();
     const payload = coursePayload(editValues);
-    if (!payload.name || submitting) return;
+    const validationError = firstValidationError(validateCourse(editValues));
+    if (validationError || submitting) {
+      if (validationError) setMutationError(validationError);
+      return;
+    }
 
     setSubmitting(true);
-    setError("");
+    setLoadError("");
+    setMutationError("");
     setNotice("");
     try {
       const updatedCourse = await updateCourse(courseId, payload);
@@ -86,7 +101,7 @@ export default function DashboardPage() {
       setEditValues(emptyEditValues);
       setNotice(`Đã cập nhật môn học “${updatedCourse.name}”.`);
     } catch (requestError) {
-      setError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setSubmitting(false);
     }
@@ -96,7 +111,8 @@ export default function DashboardPage() {
     if (!window.confirm(`Xóa môn học “${course.name}” và toàn bộ tài liệu liên quan?`)) return;
 
     setDeletingId(course.id);
-    setError("");
+    setLoadError("");
+    setMutationError("");
     setNotice("");
     try {
       await deleteCourse(course.id);
@@ -104,7 +120,7 @@ export default function DashboardPage() {
       if (editingId === course.id) cancelEditing();
       setNotice(`Đã xóa môn học “${course.name}”.`);
     } catch (requestError) {
-      setError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setDeletingId(null);
     }
@@ -118,7 +134,7 @@ export default function DashboardPage() {
           <h1 id="dashboard-title">Không gian học tập</h1>
           <p className="page-intro">Chọn một môn học để mở tài liệu và tiếp tục học.</p>
         </div>
-        <button className="primary-button" onClick={() => { setShowForm((current) => !current); setError(""); setNotice(""); }} type="button">
+        <button className="primary-button" disabled={loading || submitting || deletingId !== null} onClick={() => { setShowForm((current) => !current); setMutationError(""); setNotice(""); }} type="button">
           {showForm ? "Đóng" : "+ Tạo môn học"}
         </button>
       </div>
@@ -126,30 +142,37 @@ export default function DashboardPage() {
       {showForm && (
         <form className="inline-form" onSubmit={submitCourse}>
           <label htmlFor="course-name">Tên môn học</label>
-          <input id="course-name" value={newCourse} onChange={(event) => setNewCourse(event.target.value)} placeholder="Ví dụ: Cơ sở dữ liệu" maxLength="160" disabled={submitting} autoFocus />
+          <input id="course-name" value={newCourse} onChange={(event) => setNewCourse(event.target.value)} placeholder="Ví dụ: Cơ sở dữ liệu" maxLength={COURSE_FIELD_LIMITS.name} disabled={submitting} autoFocus />
           <button className="primary-button" type="submit" disabled={!newCourse.trim() || submitting}>{submitting ? "Đang tạo…" : "Thêm môn học"}</button>
         </form>
       )}
 
-      {error && <div className="request-message request-error" role="alert"><span>{error}</span><button className="text-button" onClick={retryCourses} type="button">Thử lại</button></div>}
+      {mutationError && <div className="request-message request-error" role="alert"><span>{mutationError}</span></div>}
+      {loadError && courses.length > 0 && <div className="request-message request-error" role="alert"><span>{loadError}</span><button className="text-button" onClick={retryCourses} type="button">Tải lại</button></div>}
       {notice && <p className="request-message request-success" role="status">{notice}</p>}
 
       <section className="course-area" aria-labelledby="courses-title">
         <h2 id="courses-title">Môn học của bạn</h2>
         {loading ? (
-          <p className="loading-state" role="status">Đang tải môn học…</p>
+          <LoadingState message="Đang tải danh sách môn học…" />
+        ) : loadError && courses.length === 0 ? (
+          <ErrorState message={loadError} onRetry={retryCourses} />
         ) : courses.length === 0 ? (
-          <p className="empty-state">Bạn chưa có môn học. Hãy tạo môn học đầu tiên để tải tài liệu.</p>
+          <EmptyState
+            title="Bạn chưa có môn học"
+            description="Tạo môn học đầu tiên để bắt đầu tải tài liệu và mở phiên học."
+            action={<button className="secondary-button" type="button" onClick={() => setShowForm(true)}>Tạo môn học</button>}
+          />
         ) : (
           <div className="course-list">
             {courses.map((course) => editingId === course.id ? (
               <form className="course-card course-edit-form" key={course.id} onSubmit={(event) => submitEdit(event, course.id)}>
                 <label htmlFor={`edit-course-name-${course.id}`}>Tên môn học</label>
-                <input id={`edit-course-name-${course.id}`} maxLength="160" value={editValues.name} onChange={(event) => setEditValues((current) => ({ ...current, name: event.target.value }))} disabled={submitting} autoFocus />
+                <input id={`edit-course-name-${course.id}`} maxLength={COURSE_FIELD_LIMITS.name} value={editValues.name} onChange={(event) => setEditValues((current) => ({ ...current, name: event.target.value }))} disabled={submitting} autoFocus />
                 <label htmlFor={`edit-course-code-${course.id}`}>Mã môn học</label>
-                <input id={`edit-course-code-${course.id}`} maxLength="50" value={editValues.code} onChange={(event) => setEditValues((current) => ({ ...current, code: event.target.value }))} disabled={submitting} />
+                <input id={`edit-course-code-${course.id}`} maxLength={COURSE_FIELD_LIMITS.code} value={editValues.code} onChange={(event) => setEditValues((current) => ({ ...current, code: event.target.value }))} disabled={submitting} />
                 <label htmlFor={`edit-course-description-${course.id}`}>Mô tả</label>
-                <textarea id={`edit-course-description-${course.id}`} maxLength="1000" rows="3" value={editValues.description} onChange={(event) => setEditValues((current) => ({ ...current, description: event.target.value }))} disabled={submitting} />
+                <textarea id={`edit-course-description-${course.id}`} maxLength={COURSE_FIELD_LIMITS.description} rows="3" value={editValues.description} onChange={(event) => setEditValues((current) => ({ ...current, description: event.target.value }))} disabled={submitting} />
                 <div className="course-card-actions">
                   <button className="primary-button" type="submit" disabled={!editValues.name.trim() || submitting}>{submitting ? "Đang lưu…" : "Lưu"}</button>
                   <button className="secondary-button" type="button" onClick={cancelEditing} disabled={submitting}>Hủy</button>

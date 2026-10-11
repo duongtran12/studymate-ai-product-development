@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import {
   deleteDocument,
   getCourses,
   getDocuments,
   uploadDocument,
 } from "../api/documentLibraryApi";
+import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
+import { validateDocumentFile } from "../validation/formValidation";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const statusLabels = {
   uploaded: "Đã tải lên",
   processing: "Đang xử lý",
@@ -19,13 +21,6 @@ const statusLabels = {
 function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function validateFile(file) {
-  const extension = file.name.toLowerCase().split(".").pop();
-  if (!["pdf", "docx"].includes(extension)) return "Chỉ hỗ trợ tệp PDF hoặc DOCX.";
-  if (file.size > MAX_FILE_SIZE) return "Tệp không được lớn hơn 10 MB.";
-  return "";
 }
 
 export default function DocumentLibraryPage() {
@@ -82,7 +77,7 @@ export default function DocumentLibraryPage() {
 
   async function upload(file) {
     if (!file || !selectedCourseId) return;
-    const validationError = validateFile(file);
+    const validationError = validateDocumentFile(file);
     if (validationError) {
       setNotice("");
       setMutationError(validationError);
@@ -100,7 +95,7 @@ export default function DocumentLibraryPage() {
       setNotice(`Đã tải lên “${document.fileName}”.`);
       if (fileInput.current) fileInput.current.value = "";
     } catch (requestError) {
-      setMutationError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setUploading(false);
     }
@@ -117,7 +112,7 @@ export default function DocumentLibraryPage() {
       setDocuments((current) => current.filter((item) => item.id !== document.id));
       setNotice(`Đã xóa “${document.fileName}”.`);
     } catch (requestError) {
-      setMutationError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setDeletingId(null);
     }
@@ -148,7 +143,7 @@ export default function DocumentLibraryPage() {
             setNotice("");
             setMutationError("");
           }}
-          disabled={loadingCourses || courses.length === 0}
+          disabled={busy || uploading || deletingId !== null || courses.length === 0}
         >
           {courses.length === 0 && <option value="">Chưa có môn học</option>}
           {courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}
@@ -163,20 +158,22 @@ export default function DocumentLibraryPage() {
           id="document-upload"
           type="file"
           accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          disabled={!selectedCourseId || uploading}
+          disabled={!selectedCourseId || busy || uploading || deletingId !== null}
           onChange={(event) => upload(event.target.files?.[0])}
         />
       </label>
 
-      {error && <div className="request-message request-error" role="alert"><span>{error}</span><button className="text-button" onClick={retry}>Thử lại</button></div>}
+      {mutationError && <div className="request-message request-error" role="alert"><span>{mutationError}</span><button className="text-button" onClick={retry}>Tải lại</button></div>}
       {notice && <p className="request-message request-success" role="status">{notice}</p>}
 
       {busy ? (
-        <p className="loading-state" role="status">Đang tải dữ liệu…</p>
+        <LoadingState message={loadingCourses ? "Đang tải môn học…" : "Đang tải tài liệu…"} />
+      ) : (coursesError || documentsError) ? (
+        <ErrorState message={error} onRetry={retry} />
       ) : courses.length === 0 ? (
-        <p className="empty-state">Bạn chưa có môn học. Hãy tạo môn học trước khi tải tài liệu.</p>
+        <EmptyState title="Chưa có môn học" description="Hãy tạo môn học trên Dashboard trước khi tải tài liệu." />
       ) : documents.length === 0 ? (
-        <p className="empty-state">Môn học này chưa có tài liệu. Hãy tải lên tệp đầu tiên.</p>
+        <EmptyState title="Môn học chưa có tài liệu" description="Tải lên tệp PDF hoặc DOCX đầu tiên bằng khu vực phía trên." />
       ) : (
         <div className="document-list">
           {documents.map((document) => {
@@ -185,7 +182,7 @@ export default function DocumentLibraryPage() {
               <div><h2>{document.fileName}</h2><p>{formatFileSize(document.fileSizeBytes)} · {new Date(document.createdAt).toLocaleDateString("vi-VN")}</p></div>
               <div className="document-actions">
                 <span className={`status-badge status-${status}`}>{statusLabels[status] ?? document.processingStatus}</span>
-                <button className="text-button danger" disabled={deletingId === document.id} onClick={() => removeDocument(document)}>{deletingId === document.id ? "Đang xóa…" : "Xóa"}</button>
+                <button className="text-button danger" disabled={deletingId !== null || uploading} onClick={() => removeDocument(document)}>{deletingId === document.id ? "Đang xóa…" : "Xóa"}</button>
               </div>
             </article>;
           })}
