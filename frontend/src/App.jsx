@@ -16,7 +16,7 @@ export default function App() {
         <Route path="/register" element={<AuthPage mode="register" />} />
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
-          <Route path="courses" element={<PlaceholderPage title="Mon hoc" description="Tao va mo khong gian hoc theo tung mon." />} />
+          <Route path="courses" element={<DashboardPage />} />
           <Route path="documents" element={<DocumentLibraryPage />} />
           <Route path="study-sessions" element={<StudySessionPage />} />
           <Route path="quizzes" element={<QuizPage />} />

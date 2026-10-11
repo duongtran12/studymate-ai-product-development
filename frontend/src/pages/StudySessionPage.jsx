@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCourses } from "../api/courseApi";
 import { getDocuments } from "../api/documentLibraryApi";
+import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import {
   createStudySession,
   getStudySession,
@@ -203,7 +204,7 @@ export default function StudySessionPage() {
           {sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
         </select>
 
-        <fieldset disabled={Boolean(activeSessionId) || !selectedCourseId}>
+        <fieldset disabled={loading || sending || Boolean(activeSessionId) || !selectedCourseId}>
           <legend>Tài liệu làm nguồn</legend>
           {documents.length === 0 && <p className="context-help">Môn học này chưa có tài liệu.</p>}
           {documents.map((document) => (
@@ -217,13 +218,16 @@ export default function StudySessionPage() {
       </aside>
 
       <div className="chat-panel">
-        {error && <div className="request-message request-error" role="alert"><span>{error}</span>{retry && <button className="text-button" onClick={retry} type="button">Thử lại</button>}</div>}
         <div className="chat-history" aria-live="polite">
-          {loading && <p className="loading-state">Đang tải dữ liệu phiên học...</p>}
-          {!loading && messages.length === 0 && (
-            <div className="chat-empty">Đặt câu hỏi để bắt đầu. Câu trả lời sẽ kèm nguồn, hoặc nói rõ khi tài liệu chưa đủ căn cứ.</div>
-          )}
-          {messages.map((message) => (
+          {loading ? (
+            <LoadingState message="Đang tải dữ liệu phiên học…" />
+          ) : error ? (
+            <ErrorState message={error} onRetry={retry} />
+          ) : courses.length === 0 ? (
+            <EmptyState title="Chưa có môn học" description="Tạo môn học và tải tài liệu trước khi bắt đầu phiên học." />
+          ) : messages.length === 0 ? (
+            <EmptyState title="Phiên học chưa có câu hỏi" description="Đặt câu hỏi để bắt đầu. Câu trả lời sẽ kèm nguồn khi tài liệu có đủ căn cứ." />
+          ) : messages.map((message) => (
             <article className={`message message-${message.role.toLowerCase()}`} key={message.id}>
               <p>{message.role === "USER" ? "Bạn" : "StudyMate"}</p>
               <div>{message.content}</div>
@@ -241,8 +245,8 @@ export default function StudySessionPage() {
         </div>
         <form className="chat-form" onSubmit={send}>
           <label htmlFor="question">Đặt câu hỏi từ tài liệu đã chọn</label>
-          <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ví dụ: Dependency injection là gì?" rows="3" maxLength={STUDY_QUESTION_MAX_LENGTH} disabled={!selectedCourseId || sending} />
-          <button className="primary-button" type="submit" disabled={!question.trim() || !selectedCourseId || sending}>{sending ? "Đang gửi..." : "Gửi câu hỏi"}</button>
+          <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ví dụ: Dependency injection là gì?" rows="3" maxLength={STUDY_QUESTION_MAX_LENGTH} disabled={loading || !selectedCourseId || sending} />
+          <button className="primary-button" type="submit" disabled={loading || !question.trim() || !selectedCourseId || sending}>{sending ? "Đang gửi..." : "Gửi câu hỏi"}</button>
         </form>
       </div>
     </section>
