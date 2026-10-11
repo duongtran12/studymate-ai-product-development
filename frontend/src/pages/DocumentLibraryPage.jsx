@@ -8,8 +8,8 @@ import {
 } from "../api/documentLibraryApi";
 import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
+import { validateDocumentFile } from "../validation/formValidation";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const statusLabels = {
   uploaded: "Đã tải lên",
   processing: "Đang xử lý",
@@ -20,13 +20,6 @@ const statusLabels = {
 function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function validateFile(file) {
-  const extension = file.name.toLowerCase().split(".").pop();
-  if (!["pdf", "docx"].includes(extension)) return "Chỉ hỗ trợ tệp PDF hoặc DOCX.";
-  if (file.size > MAX_FILE_SIZE) return "Tệp không được lớn hơn 10 MB.";
-  return "";
 }
 
 export default function DocumentLibraryPage() {
@@ -83,7 +76,7 @@ export default function DocumentLibraryPage() {
 
   async function upload(file) {
     if (!file || !selectedCourseId) return;
-    const validationError = validateFile(file);
+    const validationError = validateDocumentFile(file);
     if (validationError) {
       setNotice("");
       setMutationError(validationError);

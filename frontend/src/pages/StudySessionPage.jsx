@@ -10,6 +10,7 @@ import {
 } from "../api/studySessionApi";
 import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
+import { STUDY_QUESTION_MAX_LENGTH, validateStudyQuestion } from "../validation/formValidation";
 import "../studySession.css";
 
 const newSessionValue = "";
@@ -146,7 +147,11 @@ export default function StudySessionPage() {
   async function send(event) {
     event.preventDefault();
     const asked = question.trim();
-    if (!asked || !selectedCourseId || sending) return;
+    const validationError = validateStudyQuestion(question);
+    if (validationError || !selectedCourseId || sending) {
+      if (validationError) setMutationError(validationError);
+      return;
+    }
 
     setSending(true);
     setMutationError("");
@@ -236,7 +241,7 @@ export default function StudySessionPage() {
         </div>
         <form className="chat-form" onSubmit={send}>
           <label htmlFor="question">Đặt câu hỏi từ tài liệu đã chọn</label>
-          <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ví dụ: Dependency injection là gì?" rows="3" disabled={!selectedCourseId || sending} />
+          <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ví dụ: Dependency injection là gì?" rows="3" maxLength={STUDY_QUESTION_MAX_LENGTH} disabled={!selectedCourseId || sending} />
           <button className="primary-button" type="submit" disabled={!question.trim() || !selectedCourseId || sending}>{sending ? "Đang gửi..." : "Gửi câu hỏi"}</button>
         </form>
       </div>
