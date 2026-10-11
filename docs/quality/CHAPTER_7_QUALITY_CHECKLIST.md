@@ -1,5 +1,7 @@
 # Chapter 7 quality checklist
 
+Verification results for this checklist are recorded in [CHAPTER_7_VERIFICATION_EVIDENCE.md](CHAPTER_7_VERIFICATION_EVIDENCE.md).
+
 ## Purpose and scope
 
 This checklist defines the Chapter 7 acceptance baseline for StudyMate after the backend and frontend quality refactors. The goal is to protect existing API contracts, user ownership boundaries, grounded-chat guarantees and the current Quiz prototype while adding regression coverage rather than new product behavior.
