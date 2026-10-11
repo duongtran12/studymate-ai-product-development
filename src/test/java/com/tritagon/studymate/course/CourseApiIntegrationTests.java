@@ -95,12 +95,29 @@ class CourseApiIntegrationTests {
 				.andReturn());
 
 		mockMvc.perform(get("/api/v1/courses/{courseId}", courseId).header("X-User-Id", OTHER_USER_ID))
-				.andExpect(status().isNotFound());
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"))
+				.andExpect(jsonPath("$.path").value("/api/v1/courses/" + courseId));
+		mockMvc.perform(put("/api/v1/courses/{courseId}", courseId)
+				.header("X-User-Id", OTHER_USER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\":\"Unauthorized update\"}"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+		mockMvc.perform(delete("/api/v1/courses/{courseId}", courseId)
+				.header("X-User-Id", OTHER_USER_ID))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+		mockMvc.perform(get("/api/v1/courses/{courseId}", courseId).header("X-User-Id", OWNER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("Private course"));
 		mockMvc.perform(post("/api/v1/courses")
 				.header("X-User-Id", OWNER_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"name\":\"   \"}"))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
 	}
 
 	private long responseId(MvcResult result) throws Exception {

@@ -127,10 +127,65 @@ class CourseDocumentApiIntegrationTests {
 		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
 				.file(file)
 				.header("X-User-Id", OWNER_ID))
-				.andExpect(status().isBadRequest());
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"))
+				.andExpect(jsonPath("$.path").value("/api/v1/courses/" + COURSE_ID + "/documents"));
 
-		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM documents", Integer.class)).isZero();
-		assertThat(Files.exists(STORAGE_ROOT)).isFalse();
+		assertRejectedUploadLeftNoData();
+	}
+
+	@Test
+	void rejectsUploadWhenMultipartFileIsMissing() throws Exception {
+		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+				.andExpect(jsonPath("$.path").value("/api/v1/courses/" + COURSE_ID + "/documents"));
+
+		assertRejectedUploadLeftNoData();
+	}
+
+	@Test
+	void rejectsUploadLargerThanTenMegabytes() throws Exception {
+		MockMultipartFile oversizedFile = new MockMultipartFile(
+				"file", "oversized.pdf", "application/pdf", new byte[10 * 1024 * 1024 + 1]);
+
+		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.file(oversizedFile)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+
+		assertRejectedUploadLeftNoData();
+	}
+
+	@Test
+	void rejectsExcessivelyLongFileName() throws Exception {
+		String longFileName = "a".repeat(252) + ".pdf";
+		MockMultipartFile file = new MockMultipartFile(
+				"file", longFileName, "application/pdf", "content".getBytes());
+
+		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.file(file)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+
+		assertRejectedUploadLeftNoData();
+	}
+
+	@Test
+	void rejectsContentTypeThatDoesNotMatchSupportedDocument() throws Exception {
+		MockMultipartFile spoofedFile = new MockMultipartFile(
+				"file", "spoofed.pdf", "text/plain", "not-a-pdf".getBytes());
+
+		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.file(spoofedFile)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+
+		assertRejectedUploadLeftNoData();
 	}
 
 	@Test
@@ -149,7 +204,8 @@ class CourseDocumentApiIntegrationTests {
 
 		mockMvc.perform(get("/api/v1/courses/{courseId}/documents", COURSE_ID)
 				.header("X-User-Id", OTHER_USER_ID))
-				.andExpect(status().isNotFound());
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
 		mockMvc.perform(get("/api/v1/courses/{courseId}/documents/{documentId}", COURSE_ID, documentId)
 				.header("X-User-Id", OTHER_USER_ID))
 				.andExpect(status().isNotFound());
@@ -163,6 +219,11 @@ class CourseDocumentApiIntegrationTests {
 
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM documents", Integer.class)).isEqualTo(1);
 		assertThat(STORAGE_ROOT.resolve(storagePath)).exists();
+	}
+
+	private void assertRejectedUploadLeftNoData() {
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM documents", Integer.class)).isZero();
+		assertThat(Files.exists(STORAGE_ROOT)).isFalse();
 	}
 
 	private static void clearStorage() throws IOException {
