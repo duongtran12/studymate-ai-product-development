@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import DocumentUploadPanel from "../components/DocumentUploadPanel";
@@ -24,7 +24,7 @@ function formatFileSize(bytes) {
 
 export default function DocumentLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialCourseId = useRef(searchParams.get("course") ?? "");
+  const [initialCourseId] = useState(() => searchParams.get("course") ?? "");
   const {
     data: courses,
     loading: loadingCourses,
@@ -45,7 +45,7 @@ export default function DocumentLibraryPage() {
     retry: retryDocuments,
     cancel: cancelDocuments,
   } = useAsyncRequest(requestDocuments, { initialData: [] });
-  const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId.current);
+  const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [deleteError, setDeleteError] = useState("");
@@ -58,11 +58,11 @@ export default function DocumentLibraryPage() {
 
   useEffect(() => {
     setSelectedCourseId((current) => {
-      const preferred = current || initialCourseId.current;
+      const preferred = current || initialCourseId;
       if (courses.some((course) => String(course.id) === preferred)) return preferred;
       return courses[0]?.id ? String(courses[0].id) : "";
     });
-  }, [courses]);
+  }, [courses, initialCourseId]);
 
   useEffect(() => {
     if (selectedCourseId) loadDocuments(selectedCourseId);
@@ -133,6 +133,7 @@ export default function DocumentLibraryPage() {
       </label>
 
       <DocumentUploadPanel
+        key={selectedCourseId}
         courseId={selectedCourseId}
         disabled={busy || deletingId !== null}
         onBusyChange={handleUploadBusyChange}

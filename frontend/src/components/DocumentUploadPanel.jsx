@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { getUserErrorMessage } from "../api/apiError";
 import { uploadDocument } from "../api/documentLibraryApi";
 import { validateDocumentFile } from "../validation/formValidation";
@@ -7,28 +7,21 @@ export default function DocumentUploadPanel({ courseId, disabled = false, onUplo
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [pendingFile, setPendingFile] = useState(null);
   const fileInput = useRef(null);
-  const pendingFile = useRef(null);
-
-  useEffect(() => {
-    setError("");
-    setNotice("");
-    pendingFile.current = null;
-    if (fileInput.current) fileInput.current.value = "";
-  }, [courseId]);
 
   async function upload(file) {
     if (!file || !courseId || uploading) return;
 
     const validationError = validateDocumentFile(file);
     if (validationError) {
-      pendingFile.current = null;
+      setPendingFile(null);
       setNotice("");
       setError(validationError);
       return;
     }
 
-    pendingFile.current = file;
+    setPendingFile(file);
     setUploading(true);
     onBusyChange?.(true);
     setError("");
@@ -37,7 +30,7 @@ export default function DocumentUploadPanel({ courseId, disabled = false, onUplo
       const document = await uploadDocument(courseId, file);
       onUploaded(document);
       setNotice(`Đã tải lên “${document.fileName}”.`);
-      pendingFile.current = null;
+      setPendingFile(null);
       if (fileInput.current) fileInput.current.value = "";
     } catch (requestError) {
       setError(getUserErrorMessage(requestError));
@@ -67,8 +60,8 @@ export default function DocumentUploadPanel({ courseId, disabled = false, onUplo
       {error && (
         <div className="request-message request-error" role="alert">
           <span>{error}</span>
-          {pendingFile.current && (
-            <button className="text-button" type="button" onClick={() => upload(pendingFile.current)} disabled={uploading}>
+          {pendingFile && (
+            <button className="text-button" type="button" onClick={() => upload(pendingFile)} disabled={uploading}>
               Thử lại
             </button>
           )}
