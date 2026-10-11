@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { createCourse, deleteCourse, getCourses, updateCourse } from "../api/courseApi";
+import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
 const emptyEditValues = { name: "", code: "", description: "" };
@@ -52,7 +53,7 @@ export default function DashboardPage() {
       setShowForm(false);
       setNotice(`Đã tạo môn học “${createdCourse.name}”.`);
     } catch (requestError) {
-      setError(requestError.message);
+      setError(getUserErrorMessage(requestError));
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +87,7 @@ export default function DashboardPage() {
       setEditValues(emptyEditValues);
       setNotice(`Đã cập nhật môn học “${updatedCourse.name}”.`);
     } catch (requestError) {
-      setError(requestError.message);
+      setError(getUserErrorMessage(requestError));
     } finally {
       setSubmitting(false);
     }
@@ -104,7 +105,7 @@ export default function DashboardPage() {
       if (editingId === course.id) cancelEditing();
       setNotice(`Đã xóa môn học “${course.name}”.`);
     } catch (requestError) {
-      setError(requestError.message);
+      setError(getUserErrorMessage(requestError));
     } finally {
       setDeletingId(null);
     }

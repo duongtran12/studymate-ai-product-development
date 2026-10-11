@@ -6,6 +6,7 @@ import {
   getDocuments,
   uploadDocument,
 } from "../api/documentLibraryApi";
+import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -100,7 +101,7 @@ export default function DocumentLibraryPage() {
       setNotice(`Đã tải lên “${document.fileName}”.`);
       if (fileInput.current) fileInput.current.value = "";
     } catch (requestError) {
-      setMutationError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setUploading(false);
     }
@@ -117,7 +118,7 @@ export default function DocumentLibraryPage() {
       setDocuments((current) => current.filter((item) => item.id !== document.id));
       setNotice(`Đã xóa “${document.fileName}”.`);
     } catch (requestError) {
-      setMutationError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setDeletingId(null);
     }

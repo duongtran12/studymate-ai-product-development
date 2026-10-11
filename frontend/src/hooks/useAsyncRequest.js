@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getUserErrorMessage } from "../api/apiError";
 
 export function useAsyncRequest(request, { initialData = null, initialLoading = false } = {}) {
   const [data, setData] = useState(initialData);
@@ -32,7 +33,7 @@ export function useAsyncRequest(request, { initialData = null, initialLoading = 
       return result;
     } catch (requestError) {
       if (requestError.name !== "AbortError" && mountedRef.current && requestIdRef.current === requestId) {
-        setError(requestError.message);
+        setError(getUserErrorMessage(requestError));
       }
       return undefined;
     } finally {

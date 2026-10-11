@@ -8,6 +8,7 @@ import {
   getStudySessions,
   sendStudySessionQuestion,
 } from "../api/studySessionApi";
+import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
 import "../studySession.css";
 
@@ -168,7 +169,7 @@ export default function StudySessionPage() {
       setMessages((current) => [...current, turn.userMessage, turn.assistantMessage]);
       setQuestion("");
     } catch (requestError) {
-      setMutationError(requestError.message);
+      setMutationError(getUserErrorMessage(requestError));
     } finally {
       setSending(false);
     }
