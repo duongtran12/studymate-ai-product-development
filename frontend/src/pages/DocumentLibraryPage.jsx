@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
+import DocumentUploadPanel from "../components/DocumentUploadPanel";
 import {
   deleteDocument,
   getCourses,
   getDocuments,
-  uploadDocument,
 } from "../api/documentLibraryApi";
 import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
-import { validateDocumentFile } from "../validation/formValidation";
 
 const statusLabels = {
   uploaded: "Đã tải lên",
@@ -25,7 +24,7 @@ function formatFileSize(bytes) {
 
 export default function DocumentLibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialCourseId = useRef(searchParams.get("course") ?? "");
+  const [initialCourseId] = useState(() => searchParams.get("course") ?? "");
   const {
     data: courses,
     loading: loadingCourses,
@@ -46,12 +45,11 @@ export default function DocumentLibraryPage() {
     retry: retryDocuments,
     cancel: cancelDocuments,
   } = useAsyncRequest(requestDocuments, { initialData: [] });
-  const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId.current);
+  const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [mutationError, setMutationError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const [notice, setNotice] = useState("");
-  const fileInput = useRef(null);
 
   useEffect(() => {
     loadCourses();
@@ -60,11 +58,11 @@ export default function DocumentLibraryPage() {
 
   useEffect(() => {
     setSelectedCourseId((current) => {
-      const preferred = current || initialCourseId.current;
+      const preferred = current || initialCourseId;
       if (courses.some((course) => String(course.id) === preferred)) return preferred;
       return courses[0]?.id ? String(courses[0].id) : "";
     });
-  }, [courses]);
+  }, [courses, initialCourseId]);
 
   useEffect(() => {
     if (selectedCourseId) loadDocuments(selectedCourseId);
@@ -75,36 +73,10 @@ export default function DocumentLibraryPage() {
     return cancelDocuments;
   }, [cancelDocuments, loadDocuments, selectedCourseId, setDocuments]);
 
-  async function upload(file) {
-    if (!file || !selectedCourseId) return;
-    const validationError = validateDocumentFile(file);
-    if (validationError) {
-      setNotice("");
-      setMutationError(validationError);
-      return;
-    }
-
-    setUploading(true);
-    setMutationError("");
-    setCoursesError("");
-    setDocumentsError("");
-    setNotice("");
-    try {
-      const document = await uploadDocument(selectedCourseId, file);
-      setDocuments((current) => [document, ...current]);
-      setNotice(`Đã tải lên “${document.fileName}”.`);
-      if (fileInput.current) fileInput.current.value = "";
-    } catch (requestError) {
-      setMutationError(getUserErrorMessage(requestError));
-    } finally {
-      setUploading(false);
-    }
-  }
-
   async function removeDocument(document) {
     if (!window.confirm(`Xóa “${document.fileName}” khỏi thư viện?`)) return;
     setDeletingId(document.id);
-    setMutationError("");
+    setDeleteError("");
     setCoursesError("");
     setDocumentsError("");
     try {
@@ -112,17 +84,27 @@ export default function DocumentLibraryPage() {
       setDocuments((current) => current.filter((item) => item.id !== document.id));
       setNotice(`Đã xóa “${document.fileName}”.`);
     } catch (requestError) {
-      setMutationError(getUserErrorMessage(requestError));
+      setDeleteError(getUserErrorMessage(requestError));
     } finally {
       setDeletingId(null);
     }
   }
 
+  function handleUploadBusyChange(isBusy) {
+    setUploading(isBusy);
+    if (isBusy) {
+      setCoursesError("");
+      setDocumentsError("");
+      setDeleteError("");
+      setNotice("");
+    }
+  }
+
   const selectedCourse = courses.find((course) => String(course.id) === selectedCourseId);
   const busy = loadingCourses || loadingDocuments;
-  const error = mutationError || documentsError || coursesError;
+  const error = deleteError || documentsError || coursesError;
   const retry = coursesError ? retryCourses : documentsError ? retryDocuments : () => {
-    setMutationError("");
+    setDeleteError("");
     loadDocuments(selectedCourseId);
   };
 
@@ -141,7 +123,7 @@ export default function DocumentLibraryPage() {
             setSelectedCourseId(courseId);
             setSearchParams(courseId ? { course: courseId } : {});
             setNotice("");
-            setMutationError("");
+            setDeleteError("");
           }}
           disabled={busy || uploading || deletingId !== null || courses.length === 0}
         >
@@ -150,20 +132,15 @@ export default function DocumentLibraryPage() {
         </select>
       </label>
 
-      <label className={`upload-zone ${!selectedCourseId || uploading ? "upload-zone-disabled" : ""}`} htmlFor="document-upload">
-        <strong>{uploading ? "Đang tải lên…" : "Chọn tệp PDF hoặc DOCX"}</strong>
-        <span>Tối đa 10 MB. Tệp được lưu trong môn học đang chọn.</span>
-        <input
-          ref={fileInput}
-          id="document-upload"
-          type="file"
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          disabled={!selectedCourseId || busy || uploading || deletingId !== null}
-          onChange={(event) => upload(event.target.files?.[0])}
-        />
-      </label>
+      <DocumentUploadPanel
+        key={selectedCourseId}
+        courseId={selectedCourseId}
+        disabled={busy || deletingId !== null}
+        onBusyChange={handleUploadBusyChange}
+        onUploaded={(document) => setDocuments((current) => [document, ...current])}
+      />
 
-      {mutationError && <div className="request-message request-error" role="alert"><span>{mutationError}</span><button className="text-button" onClick={retry}>Tải lại</button></div>}
+      {deleteError && <div className="request-message request-error" role="alert"><span>{deleteError}</span><button className="text-button" onClick={retry}>Tải lại</button></div>}
       {notice && <p className="request-message request-success" role="status">{notice}</p>}
 
       {busy ? (

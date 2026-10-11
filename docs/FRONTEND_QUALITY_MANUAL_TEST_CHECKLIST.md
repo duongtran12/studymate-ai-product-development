@@ -1,6 +1,8 @@
 # Frontend quality regression checklist
 
-The frontend currently has no automated test runner or `test` script. Use this checklist after changes to API error handling, validation, or async UI states.
+The frontend uses ESLint for static checks and Vitest with Testing Library for automated tests. Run `pnpm lint`, `pnpm test`, and `pnpm build` before completing the manual checks below.
+
+The automated suite currently protects `useAsyncRequest` loading, error, retry, cancellation, and stale-response behavior. Page-level user journeys remain manual until broader component tests are added.
 
 ## Setup
 
@@ -43,6 +45,8 @@ The frontend currently has no automated test runner or `test` script. Use this c
 
 ## Build and repository hygiene
 
+- [ ] `pnpm lint` completes with zero warnings.
+- [ ] `pnpm test` completes successfully.
 - [ ] `pnpm build` completes successfully.
 - [ ] `git diff --check` reports no whitespace errors.
 - [ ] `frontend/node_modules`, `frontend/dist`, `.env`, and local data files are not staged.
