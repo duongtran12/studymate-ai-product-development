@@ -103,7 +103,9 @@ class StudySessionApiIntegrationTests {
 				.andExpect(jsonPath("$.assistantMessage.groundingStatus").value("SUPPORTED"))
 				.andExpect(jsonPath("$.assistantMessage.citations.length()").value(1))
 				.andExpect(jsonPath("$.assistantMessage.citations[0].documentId").value(DOCUMENT_ID))
-				.andExpect(jsonPath("$.assistantMessage.citations[0].documentName").value("chapter-05.pdf"));
+				.andExpect(jsonPath("$.assistantMessage.citations[0].documentName").value("chapter-05.pdf"))
+				.andExpect(jsonPath("$.assistantMessage.citations[0].locator").isNotEmpty())
+				.andExpect(jsonPath("$.assistantMessage.citations[0].excerpt").isNotEmpty());
 
 		mockMvc.perform(get("/api/v1/study-sessions/{sessionId}/messages", sessionId)
 				.header("X-User-Id", OWNER_ID))
@@ -143,7 +145,9 @@ class StudySessionApiIntegrationTests {
 	void rejectsForeignDocumentsAndCrossUserSessionAccess() throws Exception {
 		createSession("""
 				{"courseId":1001,"title":"Invalid scope","documentIds":[2002]}
-				""").andExpect(status().isNotFound());
+				""")
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
 
 		long sessionId = responseId(createSession("""
 				{"courseId":1001,"title":"Owner only","documentIds":[2001]}
@@ -160,6 +164,56 @@ class StudySessionApiIntegrationTests {
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"question\":\"Can I read this?\"}"))
 				.andExpect(status().isNotFound());
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_messages", Integer.class)).isZero();
+	}
+
+	@Test
+	void rejectsSessionForCourseNotOwnedByCurrentUser() throws Exception {
+		mockMvc.perform(post("/api/v1/study-sessions")
+				.header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"courseId\":1002,\"title\":\"Foreign course\",\"documentIds\":[]}"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_sessions", Integer.class)).isZero();
+	}
+
+	@Test
+	void rejectsNullDocumentIdWithoutPersistingSession() throws Exception {
+		createSession("{\"courseId\":1001,\"title\":\"Invalid document scope\",\"documentIds\":[null]}")
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_sessions", Integer.class)).isZero();
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_session_documents", Integer.class)).isZero();
+	}
+
+	@Test
+	void rejectsOversizedSessionTitleWithoutPersistingSession() throws Exception {
+		String oversizedTitle = "a".repeat(201);
+
+		createSession("{\"courseId\":1001,\"title\":\"" + oversizedTitle + "\",\"documentIds\":[]}")
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_sessions", Integer.class)).isZero();
+	}
+
+	@Test
+	void rejectsOversizedQuestionWithoutPersistingMessages() throws Exception {
+		long sessionId = responseId(createSession("""
+				{"courseId":1001,"title":"Question length","documentIds":[2001]}
+				""").andExpect(status().isCreated()).andReturn());
+		String oversizedQuestion = "q".repeat(4_001);
+
+		mockMvc.perform(post("/api/v1/study-sessions/{sessionId}/messages", sessionId)
+				.header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"question\":\"" + oversizedQuestion + "\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
 
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_messages", Integer.class)).isZero();
 	}
