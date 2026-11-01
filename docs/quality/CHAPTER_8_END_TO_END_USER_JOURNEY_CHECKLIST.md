@@ -51,4 +51,3 @@ Run these checkpoints with disposable test data. A failed request must not creat
 - Grounded chat currently uses a deterministic mock generator, not a real RAG/LLM pipeline.
 - This checklist is complete only when every applicable row has a tester-entered result and evidence such as a screenshot, API response, or database query reference.
 - Any failed row must have an issue or review note before release; do not convert an unexecuted row into Pass.
-

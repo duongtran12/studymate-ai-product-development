@@ -78,4 +78,3 @@ Invoke-CheckedCommand `
     -WorkingDirectory $frontendDirectory
 
 Write-Host "`nAll StudyMate verification steps passed." -ForegroundColor Green
-
