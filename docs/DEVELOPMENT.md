@@ -42,7 +42,26 @@ Vite serves the development client at `http://localhost:5173`.
 
 ## Before opening a pull request
 
-1. Run backend tests with `.\mvnw.cmd test`.
-2. Run `pnpm build` in `frontend/`.
-3. Confirm that no `.env`, dependency directory, build output, or secrets appear in `git status`.
-4. Link changed requirements, AI evidence, and verification results in the pull request.
+From the repository root, run the unified quality gate:
+
+```powershell
+.\scripts\verify.ps1
+```
+
+It stops on the first failure and runs these checks in order:
+
+1. backend test suite (`.\mvnw.cmd test`);
+2. frontend test suite;
+3. frontend ESLint checks;
+4. frontend production build.
+
+The script uses the Node.js-provided `npm` command only to execute the existing package scripts; dependencies and the committed lockfile remain managed by pnpm. A developer who prefers pnpm can run the same gate with:
+
+```powershell
+.\scripts\verify.ps1 -FrontendRunner pnpm
+```
+
+After the gate passes:
+
+1. Confirm that no `.env`, dependency directory, build output, or secrets appear in `git status`.
+2. Link changed requirements, AI evidence, and verification results in the pull request.
