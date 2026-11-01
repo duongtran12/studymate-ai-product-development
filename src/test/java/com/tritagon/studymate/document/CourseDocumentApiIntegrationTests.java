@@ -36,6 +36,7 @@ class CourseDocumentApiIntegrationTests {
 	private static final long OWNER_ID = 101;
 	private static final long OTHER_USER_ID = 202;
 	private static final long COURSE_ID = 1001;
+	private static final long SECOND_COURSE_ID = 1002;
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -218,6 +219,57 @@ class CourseDocumentApiIntegrationTests {
 				.andExpect(status().isNotFound());
 
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM documents", Integer.class)).isEqualTo(1);
+		assertThat(STORAGE_ROOT.resolve(storagePath)).exists();
+	}
+
+	@Test
+	void uploadRequiresHeaderAndNonEmptyFileWithoutLeavingData() throws Exception {
+		MockMultipartFile validFile = new MockMultipartFile(
+				"file", "chapter-08.pdf", "application/pdf", "content".getBytes());
+
+		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.file(validFile))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+		assertRejectedUploadLeftNoData();
+
+		MockMultipartFile emptyFile = new MockMultipartFile(
+				"file", "empty.pdf", "application/pdf", new byte[0]);
+		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.file(emptyFile)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+		assertRejectedUploadLeftNoData();
+	}
+
+	@Test
+	void documentCannotBeReadOrDeletedThroughAnotherOwnedCourse() throws Exception {
+		jdbc.update("INSERT INTO courses (id, owner_id, name, code) VALUES (?, ?, ?, ?)",
+				SECOND_COURSE_ID, OWNER_ID, "Second Course", "SEC101");
+		MockMultipartFile file = new MockMultipartFile(
+				"file", "scoped.pdf", "application/pdf", "course-scoped-content".getBytes());
+		MvcResult uploadResult = mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.file(file)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isCreated())
+				.andReturn();
+		long documentId = ((Number) com.jayway.jsonpath.JsonPath.read(
+				uploadResult.getResponse().getContentAsString(), "$.id")).longValue();
+		String storagePath = jdbc.queryForObject(
+				"SELECT storage_path FROM documents WHERE id = ?", String.class, documentId);
+
+		mockMvc.perform(get("/api/v1/courses/{courseId}/documents/{documentId}", SECOND_COURSE_ID, documentId)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+		mockMvc.perform(delete("/api/v1/courses/{courseId}/documents/{documentId}", SECOND_COURSE_ID, documentId)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM documents WHERE id = ?", Integer.class, documentId))
+				.isEqualTo(1);
 		assertThat(STORAGE_ROOT.resolve(storagePath)).exists();
 	}
 

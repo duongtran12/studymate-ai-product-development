@@ -120,6 +120,55 @@ class CourseApiIntegrationTests {
 				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
 	}
 
+	@Test
+	void createRequiresCurrentExistingUserAndLeavesNoPartialData() throws Exception {
+		String body = "{\"name\":\"Testing Fundamentals\"}";
+
+		mockMvc.perform(post("/api/v1/courses")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"))
+				.andExpect(jsonPath("$.path").value("/api/v1/courses"));
+		assertThatCourseCountIsZero();
+
+		mockMvc.perform(post("/api/v1/courses")
+				.header("X-User-Id", 999_999L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"))
+				.andExpect(jsonPath("$.detail").value("X-User-Id does not identify an existing user."));
+		assertThatCourseCountIsZero();
+	}
+
+	@Test
+	void invalidUpdateDoesNotModifyExistingCourse() throws Exception {
+		long courseId = responseId(mockMvc.perform(post("/api/v1/courses")
+				.header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\":\"Original course\",\"code\":\"ORG101\"}"))
+				.andExpect(status().isCreated())
+				.andReturn());
+
+		mockMvc.perform(put("/api/v1/courses/{courseId}", courseId)
+				.header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"name\":\"   \",\"code\":\"CHANGED\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+
+		String courseName = jdbc.queryForObject("SELECT name FROM courses WHERE id = ?", String.class, courseId);
+		String courseCode = jdbc.queryForObject("SELECT code FROM courses WHERE id = ?", String.class, courseId);
+		org.assertj.core.api.Assertions.assertThat(courseName).isEqualTo("Original course");
+		org.assertj.core.api.Assertions.assertThat(courseCode).isEqualTo("ORG101");
+	}
+
+	private void assertThatCourseCountIsZero() {
+		org.assertj.core.api.Assertions.assertThat(
+				jdbc.queryForObject("SELECT COUNT(*) FROM courses", Integer.class)).isZero();
+	}
+
 	private long responseId(MvcResult result) throws Exception {
 		return ((Number) com.jayway.jsonpath.JsonPath.read(
 				result.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.id")).longValue();

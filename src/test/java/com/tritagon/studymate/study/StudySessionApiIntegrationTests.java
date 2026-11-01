@@ -235,6 +235,54 @@ class StudySessionApiIntegrationTests {
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_messages", Integer.class)).isZero();
 	}
 
+	@Test
+	void createRequiresCurrentExistingUserWithoutPersistingSession() throws Exception {
+		String body = "{\"courseId\":1001,\"title\":\"Header validation\",\"documentIds\":[2001]}";
+
+		mockMvc.perform(post("/api/v1/study-sessions")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+		assertNoSessionsOrDocumentLinks();
+
+		mockMvc.perform(post("/api/v1/study-sessions")
+				.header("X-User-Id", 999_999L)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+		assertNoSessionsOrDocumentLinks();
+	}
+
+	@Test
+	void malformedSessionAndQuestionJsonLeaveNoPartialMessages() throws Exception {
+		mockMvc.perform(post("/api/v1/study-sessions")
+				.header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"courseId\":"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+		assertNoSessionsOrDocumentLinks();
+
+		long sessionId = responseId(createSession("""
+				{"courseId":1001,"title":"Malformed question","documentIds":[2001]}
+				""").andExpect(status().isCreated()).andReturn());
+		mockMvc.perform(post("/api/v1/study-sessions/{sessionId}/messages", sessionId)
+				.header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"question\":"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_messages", Integer.class)).isZero();
+	}
+
+	private void assertNoSessionsOrDocumentLinks() {
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_sessions", Integer.class)).isZero();
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_session_documents", Integer.class)).isZero();
+	}
+
 	private org.springframework.test.web.servlet.ResultActions createSession(String body) throws Exception {
 		return mockMvc.perform(post("/api/v1/study-sessions")
 				.header("X-User-Id", OWNER_ID)
