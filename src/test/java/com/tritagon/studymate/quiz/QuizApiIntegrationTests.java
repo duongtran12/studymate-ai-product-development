@@ -69,6 +69,7 @@ class QuizApiIntegrationTests {
 				.andExpect(header().string("Location", org.hamcrest.Matchers.matchesPattern("/api/v1/quizzes/\\d+")))
 				.andExpect(jsonPath("$.title").value("Ôn tập kiểm thử"))
 				.andExpect(jsonPath("$.questions.length()").value(2))
+				.andExpect(jsonPath("$.documentIds.length()").value(0))
 				.andExpect(jsonPath("$.questions[0].options[1]").value("Unit test"))
 				.andReturn();
 		long quizId = responseId(createResult);

@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.tritagon.studymate.course.CourseAccessService;
+import com.tritagon.studymate.document.CourseDocumentNotFoundException;
+import com.tritagon.studymate.document.CourseDocumentRepository;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
@@ -30,16 +32,21 @@ public class QuizService {
 	private final QuizQuestionRepository questionRepository;
 	private final QuizAttemptRepository attemptRepository;
 	private final QuizAttemptAnswerRepository attemptAnswerRepository;
+	private final QuizDocumentSourceRepository documentSourceRepository;
+	private final CourseDocumentRepository documentRepository;
 	private final ObjectMapper objectMapper;
 
 	public QuizService(CourseAccessService courseAccessService, QuizRepository quizRepository,
 			QuizQuestionRepository questionRepository, QuizAttemptRepository attemptRepository,
-			QuizAttemptAnswerRepository attemptAnswerRepository, ObjectMapper objectMapper) {
+			QuizAttemptAnswerRepository attemptAnswerRepository, QuizDocumentSourceRepository documentSourceRepository,
+			CourseDocumentRepository documentRepository, ObjectMapper objectMapper) {
 		this.courseAccessService = courseAccessService;
 		this.quizRepository = quizRepository;
 		this.questionRepository = questionRepository;
 		this.attemptRepository = attemptRepository;
 		this.attemptAnswerRepository = attemptAnswerRepository;
+		this.documentSourceRepository = documentSourceRepository;
+		this.documentRepository = documentRepository;
 		this.objectMapper = objectMapper;
 	}
 
@@ -68,6 +75,7 @@ public class QuizService {
 		List<QuizQuestion> questions = IntStream.range(0, request.questions().size())
 				.mapToObj(index -> toQuestion(quiz.id(), request.questions().get(index), index + 1)).toList();
 		questionRepository.saveAll(questions);
+		saveDocumentSources(quiz.id(), courseId, request.documentIds(), now);
 		return response(quiz);
 	}
 
@@ -101,8 +109,22 @@ public class QuizService {
 	}
 
 	private QuizResponse response(Quiz quiz, List<QuizQuestion> questions) {
-		return new QuizResponse(quiz.id(), quiz.courseId(), quiz.title(), questions.stream().map(this::response).toList(),
+		List<Long> documentIds = documentSourceRepository.findAllByQuizIdOrderByCreatedAtAsc(quiz.id()).stream()
+				.map(QuizDocumentSource::documentId).toList();
+		return new QuizResponse(quiz.id(), quiz.courseId(), quiz.title(), questions.stream().map(this::response).toList(), documentIds,
 				quiz.createdAt(), quiz.updatedAt());
+	}
+
+	private void saveDocumentSources(Long quizId, Long courseId, List<Long> requestedIds, OffsetDateTime createdAt) {
+		if (requestedIds == null || requestedIds.isEmpty()) return;
+		List<Long> documentIds = requestedIds.stream().distinct().toList();
+		for (Long documentId : documentIds) {
+			if (documentId == null) throw badRequest("Quiz document IDs must not be null.");
+			documentRepository.findByIdAndCourseId(documentId, courseId)
+					.orElseThrow(() -> new CourseDocumentNotFoundException(documentId));
+		}
+		documentSourceRepository.saveAll(documentIds.stream()
+				.map(documentId -> new QuizDocumentSource(null, quizId, documentId, createdAt)).toList());
 	}
 
 	private QuizQuestionResponse response(QuizQuestion question) {
