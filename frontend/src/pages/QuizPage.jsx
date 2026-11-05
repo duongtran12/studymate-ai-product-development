@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getUserErrorMessage } from "../api/apiError";
 import { getCourses } from "../api/courseApi";
-import { getCourseQuizzes, submitQuizAttempt } from "../api/quizApi";
+import { createQuiz, getCourseQuizzes, submitQuizAttempt } from "../api/quizApi";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
@@ -19,6 +19,9 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   const [attempt, setAttempt] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showCreator, setShowCreator] = useState(false);
+  const [draft, setDraft] = useState({ title: "", questionText: "", options: "", answerText: "", explanation: "" });
+  const [creatorError, setCreatorError] = useState("");
   const { data: courses, loading: loadingCourses, error: coursesError, run: loadCourses, retry: retryCourses, cancel: cancelCourses } = useAsyncRequest(getCourses, { initialData: [], initialLoading: !suppliedQuiz });
   const requestQuizzes = useCallback((signal, selectedCourseId) => getCourseQuizzes(selectedCourseId, signal), []);
   const { data: quizzes, loading: loadingQuizzes, error: quizzesError, setData: setQuizzes, run: loadQuizzes, retry: retryQuizzes, cancel: cancelQuizzes } = useAsyncRequest(requestQuizzes, { initialData: [] });
@@ -54,6 +57,25 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
 
   function resetAttempt() { setAnswers({}); setAttempt(null); setSubmitError(""); }
   function chooseAnswer(questionId, option) { setAnswers((current) => ({ ...current, [questionId]: option })); setAttempt(null); }
+  function updateDraft(field, value) { setDraft((current) => ({ ...current, [field]: value })); }
+  async function createManualQuiz(event) {
+    event.preventDefault();
+    const options = draft.options.split("\n").map((option) => option.trim()).filter(Boolean);
+    if (options.length < 2 || !options.includes(draft.answerText.trim())) {
+      setCreatorError("Cần ít nhất hai đáp án và đáp án đúng phải nằm trong danh sách.");
+      return;
+    }
+    setSubmitting(true);
+    setCreatorError("");
+    try {
+      const created = await createQuiz(courseId, { title: draft.title, questions: [{ questionText: draft.questionText, options, answerText: draft.answerText, explanation: draft.explanation }] });
+      setQuizzes((current) => [created, ...current]);
+      setQuizId(String(created.id));
+      setDraft({ title: "", questionText: "", options: "", answerText: "", explanation: "" });
+      setShowCreator(false);
+    } catch (requestFailure) { setCreatorError(getUserErrorMessage(requestFailure)); }
+    finally { setSubmitting(false); }
+  }
   async function submit() {
     if (questions.some((question) => !answers[question.id])) return;
     setSubmitError("");
@@ -72,7 +94,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   if (busy) return <section className="page-section"><LoadingState message="Đang chuẩn bị quiz…" /></section>;
   if (requestError) return <section className="page-section"><ErrorState message={requestError} onRetry={error || coursesError ? (onRetry ?? retryCourses) : retryQuizzes} /></section>;
   if (!suppliedQuiz && courses.length === 0) return <section className="page-section"><EmptyState title="Chưa có môn học" description="Hãy tạo một môn học trước khi làm quiz." /></section>;
-  if (!activeQuiz || questions.length === 0) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1>{!suppliedQuiz && <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); resetAttempt(); }} />}<EmptyState title="Chưa có quiz" description="Tạo bộ câu hỏi cho môn học này để bắt đầu ôn tập." /></section>;
+  if (!activeQuiz || questions.length === 0) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1>{!suppliedQuiz && <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); resetAttempt(); }} />}<EmptyState title="Chưa có quiz" description="Tạo bộ câu hỏi cho môn học này để bắt đầu ôn tập." />{!suppliedQuiz && <><button className="primary-button" type="button" onClick={() => { setShowCreator((current) => !current); setCreatorError(""); }}>{showCreator ? "Đóng biểu mẫu" : "Tạo quiz thủ công"}</button>{showCreator && <QuizCreator draft={draft} disabled={submitting} error={creatorError} onChange={updateDraft} onSubmit={createManualQuiz} />}</>}</section>;
 
   const complete = questions.every((question) => answers[question.id]);
   return <section className="page-section" aria-labelledby="quiz-title">
@@ -98,4 +120,17 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
 
 function CoursePicker({ courses, value, onChange }) {
   return <label className="course-filter"><span>Chọn môn học</span><select value={value} onChange={(event) => onChange(event.target.value)}>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></label>;
+}
+
+function QuizCreator({ draft, disabled, error, onChange, onSubmit }) {
+  return <form className="course-create-form course-editor" onSubmit={onSubmit}>
+    <h2>Tạo quiz thủ công</h2>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <label>Tên bộ quiz<input required value={draft.title} onChange={(event) => onChange("title", event.target.value)} placeholder="Ví dụ: Ôn tập chương 1" /></label>
+    <label>Câu hỏi<input required value={draft.questionText} onChange={(event) => onChange("questionText", event.target.value)} placeholder="Nhập câu hỏi trắc nghiệm" /></label>
+    <label>Các lựa chọn (mỗi dòng một lựa chọn)<textarea required value={draft.options} onChange={(event) => onChange("options", event.target.value)} placeholder={"Lựa chọn A\nLựa chọn B"} rows="4" /></label>
+    <label>Đáp án đúng<input required value={draft.answerText} onChange={(event) => onChange("answerText", event.target.value)} placeholder="Phải trùng với một lựa chọn ở trên" /></label>
+    <label>Giải thích (không bắt buộc)<textarea value={draft.explanation} onChange={(event) => onChange("explanation", event.target.value)} rows="3" /></label>
+    <button className="primary-button" disabled={disabled} type="submit">{disabled ? "Đang tạo…" : "Tạo quiz"}</button>
+  </form>;
 }
