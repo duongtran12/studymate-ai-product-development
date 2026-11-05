@@ -53,6 +53,12 @@ public class QuizService {
 		return response(quiz);
 	}
 
+	public List<QuizAttemptHistoryResponse> attempts(Long userId, Long quizId) {
+		findOwnedQuiz(userId, quizId);
+		return attemptRepository.findAllByQuizIdAndUserIdOrderByCreatedAtDesc(quizId, userId).stream()
+				.map(QuizAttemptHistoryResponse::from).toList();
+	}
+
 	@Transactional
 	public QuizResponse create(Long userId, Long courseId, QuizCreateRequest request) {
 		courseAccessService.requireOwnedCourse(userId, courseId);

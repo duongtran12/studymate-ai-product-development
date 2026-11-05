@@ -32,6 +32,11 @@ public class QuizController {
 	@GetMapping("/quizzes/{quizId}")
 	public QuizResponse get(@CurrentUserId Long userId, @PathVariable Long quizId) { return quizService.get(userId, quizId); }
 
+	@GetMapping("/quizzes/{quizId}/attempts")
+	public List<QuizAttemptHistoryResponse> attempts(@CurrentUserId Long userId, @PathVariable Long quizId) {
+		return quizService.attempts(userId, quizId);
+	}
+
 	@PostMapping("/quizzes/{quizId}/attempts")
 	public ResponseEntity<QuizAttemptResponse> submit(@CurrentUserId Long userId, @PathVariable Long quizId,
 			@RequestBody QuizAttemptSubmitRequest request) {

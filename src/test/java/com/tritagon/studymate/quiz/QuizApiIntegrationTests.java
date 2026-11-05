@@ -91,6 +91,12 @@ class QuizApiIntegrationTests {
 				.andExpect(jsonPath("$.correctCount").value(1))
 				.andExpect(jsonPath("$.questionCount").value(2))
 				.andExpect(jsonPath("$.score").value(50.00));
+
+		mockMvc.perform(get("/api/v1/quizzes/{quizId}/attempts", quizId).header("X-User-Id", OWNER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.length()").value(1))
+				.andExpect(jsonPath("$[0].status").value("SUBMITTED"))
+				.andExpect(jsonPath("$[0].score").value(50.00));
 	}
 
 	@Test
