@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getUserErrorMessage } from "../api/apiError";
 import { getCourses } from "../api/courseApi";
-import { createQuiz, getCourseQuizzes, submitQuizAttempt } from "../api/quizApi";
+import { createQuiz, getCourseQuizzes, getQuizAttempts, submitQuizAttempt } from "../api/quizApi";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
@@ -25,6 +25,8 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   const { data: courses, loading: loadingCourses, error: coursesError, run: loadCourses, retry: retryCourses, cancel: cancelCourses } = useAsyncRequest(getCourses, { initialData: [], initialLoading: !suppliedQuiz });
   const requestQuizzes = useCallback((signal, selectedCourseId) => getCourseQuizzes(selectedCourseId, signal), []);
   const { data: quizzes, loading: loadingQuizzes, error: quizzesError, setData: setQuizzes, run: loadQuizzes, retry: retryQuizzes, cancel: cancelQuizzes } = useAsyncRequest(requestQuizzes, { initialData: [] });
+  const requestAttempts = useCallback((signal, selectedQuizId) => getQuizAttempts(selectedQuizId, signal), []);
+  const { data: attempts, loading: loadingAttempts, error: attemptsError, setData: setAttempts, run: loadAttempts, retry: retryAttempts, cancel: cancelAttempts } = useAsyncRequest(requestAttempts, { initialData: [] });
 
   useEffect(() => {
     if (suppliedQuiz) return undefined;
@@ -48,6 +50,13 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     if (suppliedQuiz) return;
     setQuizId((current) => quizzes.some((item) => String(item.id) === current) ? current : (quizzes[0]?.id ? String(quizzes[0].id) : ""));
   }, [quizzes, suppliedQuiz]);
+
+  useEffect(() => {
+    if (suppliedQuiz) return undefined;
+    if (!quizId) { setAttempts([]); return undefined; }
+    loadAttempts(quizId);
+    return cancelAttempts;
+  }, [cancelAttempts, loadAttempts, quizId, setAttempts, suppliedQuiz]);
 
   const activeQuiz = suppliedQuiz ?? quizzes.find((item) => String(item.id) === quizId);
   const questions = activeQuiz?.questions ?? [];
@@ -86,7 +95,9 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     }
     setSubmitting(true);
     try {
-      setAttempt(await submitQuizAttempt(activeQuiz.id, questions.map((question) => ({ questionId: question.id, answerText: answers[question.id] }))));
+      const result = await submitQuizAttempt(activeQuiz.id, questions.map((question) => ({ questionId: question.id, answerText: answers[question.id] })));
+      setAttempt(result);
+      await loadAttempts(activeQuiz.id);
     } catch (requestFailure) { setSubmitError(getUserErrorMessage(requestFailure)); }
     finally { setSubmitting(false); }
   }
@@ -115,6 +126,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
       {attempt && <div className="quiz-feedback"><strong>{attempt.correctCount === attempt.questionCount ? "Chính xác." : "Đã nộp bài."}</strong><p>Bạn đúng {attempt.correctCount}/{attempt.questionCount} câu, đạt {attempt.score}%.</p>{suppliedQuiz?.source && <span>Nguồn: {suppliedQuiz.source}</span>}</div>}
       <div className="quiz-actions"><button className="secondary-button" disabled={submitting} onClick={resetAttempt} type="button">Làm lại</button><button className="primary-button" disabled={!complete || Boolean(attempt) || submitting} onClick={submit} type="button">{submitting ? "Đang nộp…" : "Nộp câu trả lời"}</button></div>
     </article>
+    {!suppliedQuiz && <QuizHistory attempts={attempts} loading={loadingAttempts} error={attemptsError} onRetry={retryAttempts} />}
   </section>;
 }
 
@@ -133,4 +145,14 @@ function QuizCreator({ draft, disabled, error, onChange, onSubmit }) {
     <label>Giải thích (không bắt buộc)<textarea value={draft.explanation} onChange={(event) => onChange("explanation", event.target.value)} rows="3" /></label>
     <button className="primary-button" disabled={disabled} type="submit">{disabled ? "Đang tạo…" : "Tạo quiz"}</button>
   </form>;
+}
+
+function QuizHistory({ attempts, loading, error, onRetry }) {
+  return <section className="quiz-history" aria-live="polite">
+    <h2>Lịch sử làm bài</h2>
+    {loading && <p>Đang tải lịch sử…</p>}
+    {!loading && error && <p className="form-error">{error} <button className="secondary-button" type="button" onClick={onRetry}>Thử lại</button></p>}
+    {!loading && !error && attempts.length === 0 && <p>Chưa có lần làm bài nào.</p>}
+    {!loading && !error && attempts.length > 0 && <ol>{attempts.map((item) => <li key={item.id}><strong>{item.score}%</strong> · {item.status === "SUBMITTED" ? "Đã nộp" : item.status} · {new Date(item.submittedAt).toLocaleString("vi-VN")}</li>)}</ol>}
+  </section>;
 }
