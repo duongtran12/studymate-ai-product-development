@@ -30,6 +30,8 @@ class QuizApiIntegrationTests {
 	private static final long OTHER_USER_ID = 302L;
 	private static final long COURSE_ID = 401L;
 	private static final long OTHER_COURSE_ID = 402L;
+	private static final long DOCUMENT_ID = 501L;
+	private static final long OTHER_DOCUMENT_ID = 502L;
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -50,6 +52,7 @@ class QuizApiIntegrationTests {
 		jdbc.update("DELETE FROM quiz_attempts");
 		jdbc.update("DELETE FROM quiz_questions");
 		jdbc.update("DELETE FROM quizzes");
+		jdbc.update("DELETE FROM documents");
 		jdbc.update("DELETE FROM courses");
 		jdbc.update("DELETE FROM users");
 		jdbc.update("INSERT INTO users (id, email, password_hash, display_name) VALUES (?, ?, ?, ?)",
@@ -60,6 +63,10 @@ class QuizApiIntegrationTests {
 				COURSE_ID, OWNER_ID, "Software Testing", "ST302");
 		jdbc.update("INSERT INTO courses (id, owner_id, name, code) VALUES (?, ?, ?, ?)",
 				OTHER_COURSE_ID, OTHER_USER_ID, "Private Course", "PRI302");
+		jdbc.update("INSERT INTO documents (id, course_id, file_name, storage_path, content_type, file_size_bytes, processing_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				DOCUMENT_ID, COURSE_ID, "testing-notes.pdf", "testing-notes.pdf", "application/pdf", 1024, "ready");
+		jdbc.update("INSERT INTO documents (id, course_id, file_name, storage_path, content_type, file_size_bytes, processing_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				OTHER_DOCUMENT_ID, OTHER_COURSE_ID, "private-notes.pdf", "private-notes.pdf", "application/pdf", 1024, "ready");
 	}
 
 	@Test
@@ -107,6 +114,26 @@ class QuizApiIntegrationTests {
 				.header("X-User-Id", OWNER_ID).contentType(MediaType.APPLICATION_JSON)
 				.content("{\"title\":\"  \",\"questions\":[]}"))
 				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void storesOwnedDocumentSourcesAndRejectsForeignSources() throws Exception {
+		mockMvc.perform(post("/api/v1/courses/{courseId}/quizzes", COURSE_ID)
+				.header("X-User-Id", OWNER_ID).contentType(MediaType.APPLICATION_JSON).content("""
+					{"title":"Quiz có nguồn","documentIds":[%d],"questions":[
+					 {"questionText":"Câu hỏi?","options":["A","B"],"answerText":"A"}
+					]}
+					""".formatted(DOCUMENT_ID)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.documentIds[0]").value(DOCUMENT_ID));
+
+		mockMvc.perform(post("/api/v1/courses/{courseId}/quizzes", COURSE_ID)
+				.header("X-User-Id", OWNER_ID).contentType(MediaType.APPLICATION_JSON).content("""
+					{"title":"Nguồn không hợp lệ","documentIds":[%d],"questions":[
+					 {"questionText":"Câu hỏi?","options":["A","B"],"answerText":"A"}
+					]}
+					""".formatted(OTHER_DOCUMENT_ID)))
+				.andExpect(status().isNotFound());
 	}
 
 	private org.springframework.test.web.servlet.ResultActions createQuiz(long courseId, long userId) throws Exception {
