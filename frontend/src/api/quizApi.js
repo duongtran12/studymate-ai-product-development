@@ -8,6 +8,10 @@ export function getQuiz(quizId, signal) {
   return apiRequest(`/api/v1/quizzes/${quizId}`, { signal });
 }
 
+export function getQuizAttempts(quizId, signal) {
+	return apiRequest(`/api/v1/quizzes/${quizId}/attempts`, { signal });
+}
+
 export function createQuiz(courseId, quiz) {
   return apiRequest(`/api/v1/courses/${courseId}/quizzes`, {
     method: "POST",
