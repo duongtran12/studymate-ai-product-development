@@ -72,6 +72,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   const activeQuiz = suppliedQuiz ?? quizzes.find((item) => String(item.id) === quizId);
   const questions = activeQuiz?.questions ?? [];
   const selectedCourse = courses.find((course) => String(course.id) === courseId);
+  const sourceDocuments = documents.filter((document) => activeQuiz?.documentIds?.includes(document.id));
   const busy = loading || (!suppliedQuiz && (loadingCourses || loadingQuizzes));
   const requestError = error || coursesError || quizzesError || submitError;
 
@@ -129,6 +130,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
       {quizzes.length > 1 && <label className="course-filter"><span>Chọn bộ quiz</span><select value={quizId} onChange={(event) => { setQuizId(event.target.value); resetAttempt(); }}>{quizzes.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
     </>}
     <div className="quiz-context"><strong>{suppliedQuiz ? "Nguồn đã chọn:" : "Bộ câu hỏi:"}</strong> {activeQuiz.source ?? `${questions.length} câu hỏi`}{!suppliedQuiz && activeQuiz.documentIds?.length > 0 && ` · ${activeQuiz.documentIds.length} tài liệu nguồn`}</div>
+    {!suppliedQuiz && sourceDocuments.length > 0 && <ul className="quiz-source-list" aria-label="Tài liệu nguồn của Quiz">{sourceDocuments.map((document) => <li key={document.id}>⌁ {document.fileName}</li>)}</ul>}
     <article className="quiz-card">
       {questions.map((question, index) => <div className="quiz-question" key={question.id}>
         <p className="question-number">Câu {index + 1} / {questions.length}</p><h2>{question.questionText}</h2>
