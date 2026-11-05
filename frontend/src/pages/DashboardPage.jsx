@@ -157,7 +157,7 @@ export default function DashboardPage() {
               />
             ) : (
               <article className="course-card" key={course.id}>
-                <Link className="course-card-link" to={`/documents?course=${course.id}`}>
+                <Link className="course-card-link" to={`/courses/${course.id}`}>
                   <h3>{course.name}</h3>
                   <p>{course.code || "Chưa có mã môn học"}</p>
                   <span>{course.description || "Mở thư viện tài liệu"}</span>
