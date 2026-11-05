@@ -4,6 +4,10 @@ export function getCourses(signal) {
   return apiRequest("/api/v1/courses", { signal });
 }
 
+export function getCourse(courseId, signal) {
+  return apiRequest(`/api/v1/courses/${courseId}`, { signal });
+}
+
 export function createCourse(course) {
   return apiRequest("/api/v1/courses", {
     method: "POST",
