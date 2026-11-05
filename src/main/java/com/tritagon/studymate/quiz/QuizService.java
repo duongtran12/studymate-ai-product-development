@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -58,11 +59,10 @@ public class QuizService {
 		validateCreateRequest(request);
 		OffsetDateTime now = OffsetDateTime.now();
 		Quiz quiz = quizRepository.save(new Quiz(null, courseId, request.title().trim(), now, now));
-		List<QuizQuestion> questions = request.questions().stream()
-				.map(question -> toQuestion(quiz.id(), question, request.questions().indexOf(question) + 1))
-				.toList();
+		List<QuizQuestion> questions = IntStream.range(0, request.questions().size())
+				.mapToObj(index -> toQuestion(quiz.id(), request.questions().get(index), index + 1)).toList();
 		questionRepository.saveAll(questions);
-		return response(quiz, questions);
+		return response(quiz);
 	}
 
 	@Transactional
