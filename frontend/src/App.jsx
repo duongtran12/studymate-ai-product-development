@@ -20,7 +20,7 @@ export default function App() {
           <Route path="documents" element={<DocumentLibraryPage />} />
           <Route path="study-sessions" element={<StudySessionPage />} />
           <Route path="quizzes" element={<QuizPage />} />
-          <Route path="profile" element={<PlaceholderPage title="Ho so" description="Quan ly tai khoan va tuy chon hoc tap." />} />
+          <Route path="profile" element={<PlaceholderPage title="Hồ sơ" description="Quản lý tài khoản và tùy chọn học tập." />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
