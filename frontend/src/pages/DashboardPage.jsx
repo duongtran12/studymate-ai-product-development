@@ -1,10 +1,30 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import CourseEditor from "../components/CourseEditor";
 import { createCourse, deleteCourse, getCourses, updateCourse } from "../api/courseApi";
+import { getDocuments } from "../api/documentLibraryApi";
+import { getCourseQuizzes, getQuizAttempts } from "../api/quizApi";
+import { getStudySessions } from "../api/studySessionApi";
 import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
+
+async function getStudyActivity(signal, courses) {
+  const courseData = await Promise.all(courses.map(async (course) => {
+    const [documents, quizzes, sessions] = await Promise.all([
+      getDocuments(course.id, signal), getCourseQuizzes(course.id, signal), getStudySessions(course.id, signal),
+    ]);
+    return { documents, quizzes, sessions };
+  }));
+  const quizzes = courseData.flatMap((item) => item.quizzes);
+  const attempts = (await Promise.all(quizzes.map((quiz) => getQuizAttempts(quiz.id, signal)))).flat();
+  return {
+    readyDocuments: courseData.flatMap((item) => item.documents).filter((document) => document.processingStatus === "READY").length,
+    quizCount: quizzes.length,
+    sessionCount: courseData.flatMap((item) => item.sessions).length,
+    recentAttempts: attempts.sort((left, right) => new Date(right.submittedAt) - new Date(left.submittedAt)).slice(0, 3),
+  };
+}
 
 export default function DashboardPage() {
   const {
@@ -17,6 +37,10 @@ export default function DashboardPage() {
     retry: retryCourses,
     cancel: cancelCourses,
   } = useAsyncRequest(getCourses, { initialData: [], initialLoading: true });
+  const requestActivity = useCallback((signal) => getStudyActivity(signal, courses), [courses]);
+  const { data: activity, loading: loadingActivity, error: activityError, run: loadActivity, cancel: cancelActivity } = useAsyncRequest(requestActivity, {
+    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [] },
+  });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +52,11 @@ export default function DashboardPage() {
     loadCourses();
     return cancelCourses;
   }, [cancelCourses, loadCourses]);
+
+  useEffect(() => {
+    loadActivity();
+    return cancelActivity;
+  }, [cancelActivity, loadActivity]);
 
   async function submitCourse(payload) {
     if (submitting) return false;
@@ -129,6 +158,16 @@ export default function DashboardPage() {
       {mutationError && <div className="request-message request-error" role="alert"><span>{mutationError}</span></div>}
       {loadError && courses.length > 0 && <div className="request-message request-error" role="alert"><span>{loadError}</span><button className="text-button" onClick={retryCourses} type="button">Tải lại</button></div>}
       {notice && <p className="request-message request-success" role="status">{notice}</p>}
+
+      <section className="dashboard-activity" aria-labelledby="activity-title">
+        <div><p className="eyebrow">Tiến độ</p><h2 id="activity-title">Hoạt động học tập</h2></div>
+        {activityError ? <p className="activity-message">Không thể tải tổng quan hoạt động lúc này.</p> : loadingActivity ? <p className="activity-message">Đang tổng hợp tiến độ…</p> : <><div className="course-overview-stats">
+          <article><strong>{activity.readyDocuments}</strong><span>Tài liệu sẵn sàng</span></article>
+          <article><strong>{activity.quizCount}</strong><span>Quiz đã tạo</span></article>
+          <article><strong>{activity.sessionCount}</strong><span>Phiên học đã lưu</span></article>
+        </div>
+        <div className="recent-attempts"><h3>Kết quả Quiz gần nhất</h3>{activity.recentAttempts.length === 0 ? <p>Chưa có lần làm Quiz nào.</p> : <ol>{activity.recentAttempts.map((attempt) => <li key={attempt.id}><strong>{attempt.score}%</strong><span>{new Date(attempt.submittedAt).toLocaleString("vi-VN")}</span></li>)}</ol>}</div></>}
+      </section>
 
       <section className="course-area" aria-labelledby="courses-title">
         <h2 id="courses-title">Môn học của bạn</h2>

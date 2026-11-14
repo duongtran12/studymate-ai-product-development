@@ -25,7 +25,7 @@ export default function CourseOverviewPage() {
   if (!data?.course) return <section className="page-section"><EmptyState title="Không tìm thấy môn học" description="Môn học này không còn tồn tại hoặc bạn không có quyền truy cập." action={<Link className="primary-action" to="/courses">Về danh sách môn học</Link>} /></section>;
 
   const { course, documents } = data;
-  const readyDocuments = documents.filter((document) => document.processingStatus === "ready").length;
+  const readyDocuments = documents.filter((document) => document.processingStatus === "READY").length;
   return <section className="page-section" aria-labelledby="course-title">
     <p className="eyebrow">Không gian môn học</p>
     <h1 id="course-title">{course.name}</h1>
