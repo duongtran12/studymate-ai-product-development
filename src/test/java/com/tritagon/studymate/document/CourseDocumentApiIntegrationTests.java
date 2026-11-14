@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -26,6 +27,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -76,9 +79,9 @@ class CourseDocumentApiIntegrationTests {
 	void ownerCanUploadListGetAndDeleteDocument() throws Exception {
 		MockMultipartFile file = new MockMultipartFile(
 				"file",
-				"C:\\fakepath\\chapter-05.pdf",
-				"application/pdf",
-				"sample-pdf-content".getBytes());
+				"C:\\fakepath\\chapter-05.docx",
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+				docx("Software architecture uses clear boundaries between components."));
 
 		MvcResult uploadResult = mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
 				.file(file)
@@ -87,9 +90,9 @@ class CourseDocumentApiIntegrationTests {
 				.andExpect(header().string("Location", org.hamcrest.Matchers.matchesPattern(
 						"/api/v1/courses/" + COURSE_ID + "/documents/\\d+")))
 				.andExpect(jsonPath("$.courseId").value(COURSE_ID))
-				.andExpect(jsonPath("$.fileName").value("chapter-05.pdf"))
-				.andExpect(jsonPath("$.contentType").value("application/pdf"))
-				.andExpect(jsonPath("$.processingStatus").value("UPLOADED"))
+				.andExpect(jsonPath("$.fileName").value("chapter-05.docx"))
+				.andExpect(jsonPath("$.contentType").value("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+				.andExpect(jsonPath("$.processingStatus").value("READY"))
 				.andExpect(jsonPath("$.storagePath").doesNotExist())
 				.andReturn();
 
@@ -110,7 +113,7 @@ class CourseDocumentApiIntegrationTests {
 		mockMvc.perform(get("/api/v1/courses/{courseId}/documents/{documentId}", COURSE_ID, documentId)
 				.header("X-User-Id", OWNER_ID))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.fileName").value("chapter-05.pdf"));
+				.andExpect(jsonPath("$.fileName").value("chapter-05.docx"));
 
 		mockMvc.perform(delete("/api/v1/courses/{courseId}/documents/{documentId}", COURSE_ID, documentId)
 				.header("X-User-Id", OWNER_ID))
@@ -276,6 +279,14 @@ class CourseDocumentApiIntegrationTests {
 	private void assertRejectedUploadLeftNoData() {
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM documents", Integer.class)).isZero();
 		assertThat(Files.exists(STORAGE_ROOT)).isFalse();
+	}
+
+	private byte[] docx(String text) throws IOException {
+		try (XWPFDocument document = new XWPFDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+			document.createParagraph().createRun().setText(text);
+			document.write(output);
+			return output.toByteArray();
+		}
 	}
 
 	private static void clearStorage() throws IOException {

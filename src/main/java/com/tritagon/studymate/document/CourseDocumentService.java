@@ -16,13 +16,16 @@ public class CourseDocumentService {
 	private final CourseDocumentRepository documentRepository;
 	private final LocalDocumentStorage storage;
 	private final DocumentUploadValidator documentUploadValidator;
+	private final DocumentIngestionService documentIngestionService;
 
 	public CourseDocumentService(CourseAccessService courseAccessService, CourseDocumentRepository documentRepository,
-			LocalDocumentStorage storage, DocumentUploadValidator documentUploadValidator) {
+			LocalDocumentStorage storage, DocumentUploadValidator documentUploadValidator,
+			DocumentIngestionService documentIngestionService) {
 		this.courseAccessService = courseAccessService;
 		this.documentRepository = documentRepository;
 		this.storage = storage;
 		this.documentUploadValidator = documentUploadValidator;
+		this.documentIngestionService = documentIngestionService;
 	}
 
 	public List<CourseDocumentResponse> list(Long ownerId, Long courseId) {
@@ -51,14 +54,24 @@ public class CourseDocumentService {
 					storagePath,
 					fileMetadata.contentType(),
 					file.getSize(),
-					"UPLOADED",
+					"PROCESSING",
 					now,
 					now));
-			return CourseDocumentResponse.from(saved);
+			try {
+				documentIngestionService.ingest(saved);
+				return CourseDocumentResponse.from(withStatus(saved, "READY"));
+			} catch (RuntimeException exception) {
+				return CourseDocumentResponse.from(withStatus(saved, "FAILED"));
+			}
 		} catch (RuntimeException exception) {
 			storage.delete(storagePath);
 			throw exception;
 		}
+	}
+
+	private CourseDocument withStatus(CourseDocument document, String status) {
+		return documentRepository.save(new CourseDocument(document.id(), document.courseId(), document.fileName(),
+				document.storagePath(), document.contentType(), document.fileSizeBytes(), status, document.createdAt(), OffsetDateTime.now()));
 	}
 
 	@Transactional

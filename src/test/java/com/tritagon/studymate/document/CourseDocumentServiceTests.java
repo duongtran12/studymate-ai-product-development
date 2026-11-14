@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -40,11 +41,15 @@ class CourseDocumentServiceTests {
 	@Mock
 	private DocumentUploadValidator documentUploadValidator;
 
+	@Mock
+	private DocumentIngestionService documentIngestionService;
+
 	private CourseDocumentService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new CourseDocumentService(courseAccessService, documentRepository, storage, documentUploadValidator);
+		service = new CourseDocumentService(courseAccessService, documentRepository, storage, documentUploadValidator,
+				documentIngestionService);
 	}
 
 	@Test
@@ -64,12 +69,34 @@ class CourseDocumentServiceTests {
 
 		assertThat(result.id()).isEqualTo(DOCUMENT_ID);
 		assertThat(result.fileName()).isEqualTo("chapter-08.pdf");
+		assertThat(result.processingStatus()).isEqualTo("READY");
 		ArgumentCaptor<CourseDocument> saved = ArgumentCaptor.forClass(CourseDocument.class);
-		verify(documentRepository).save(saved.capture());
-		assertThat(saved.getValue().storagePath()).isEqualTo("course-21/generated.pdf");
-		assertThat(saved.getValue().contentType()).isEqualTo("application/pdf");
-		assertThat(saved.getValue().fileSizeBytes()).isEqualTo((long) file.getSize());
+		verify(documentRepository, times(2)).save(saved.capture());
+		CourseDocument initialDocument = saved.getAllValues().getFirst();
+		assertThat(initialDocument.storagePath()).isEqualTo("course-21/generated.pdf");
+		assertThat(initialDocument.contentType()).isEqualTo("application/pdf");
+		assertThat(initialDocument.fileSizeBytes()).isEqualTo((long) file.getSize());
 		verify(courseAccessService).requireOwnedCourse(OWNER_ID, COURSE_ID);
+	}
+
+	@Test
+	void marksDocumentAsFailedWhenTextCannotBeExtracted() {
+		MockMultipartFile file = pdf();
+		when(documentUploadValidator.validate(file)).thenReturn(
+				new DocumentUploadValidator.ValidatedDocument("chapter-08.pdf", "application/pdf"));
+		when(storage.store(COURSE_ID, file)).thenReturn("course-21/generated.pdf");
+		when(documentRepository.save(any(CourseDocument.class))).thenAnswer(invocation -> {
+			CourseDocument draft = invocation.getArgument(0);
+			return new CourseDocument(DOCUMENT_ID, draft.courseId(), draft.fileName(), draft.storagePath(),
+					draft.contentType(), draft.fileSizeBytes(), draft.processingStatus(), draft.createdAt(), draft.updatedAt());
+		});
+		doThrow(new IllegalArgumentException("The document does not contain usable text."))
+				.when(documentIngestionService).ingest(any(CourseDocument.class));
+
+		CourseDocumentResponse result = service.upload(OWNER_ID, COURSE_ID, file);
+
+		assertThat(result.processingStatus()).isEqualTo("FAILED");
+		verify(documentIngestionService).ingest(any(CourseDocument.class));
 	}
 
 	@Test
