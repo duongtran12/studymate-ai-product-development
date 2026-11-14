@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.tritagon.studymate.course.CourseAccessService;
+import com.tritagon.studymate.document.CourseDocument;
 import com.tritagon.studymate.document.CourseDocumentNotFoundException;
 import com.tritagon.studymate.document.CourseDocumentRepository;
 
@@ -141,8 +142,12 @@ public class StudySessionService {
 			if (documentId == null) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Document IDs must not contain null values.");
 			}
-			documentRepository.findByIdAndCourseId(documentId, courseId)
+			CourseDocument document = documentRepository.findByIdAndCourseId(documentId, courseId)
 					.orElseThrow(() -> new CourseDocumentNotFoundException(documentId));
+			if (!"READY".equals(document.processingStatus())) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+						"Document " + documentId + " must be ready before it can be used as a study source.");
+			}
 			distinctIds.add(documentId);
 		}
 		return List.copyOf(distinctIds);

@@ -133,7 +133,7 @@ class StudySessionServiceTests {
 	private CourseDocument document(Long documentId) {
 		OffsetDateTime now = OffsetDateTime.now();
 		return new CourseDocument(documentId, COURSE_ID, "chapter-08.pdf", "course-21/chapter-08.pdf",
-				"application/pdf", 1024L, "UPLOADED", now, now);
+				"application/pdf", 1024L, "READY", now, now);
 	}
 
 	private StudySession session() {

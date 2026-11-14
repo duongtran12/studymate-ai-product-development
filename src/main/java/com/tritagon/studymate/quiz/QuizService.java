@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.tritagon.studymate.course.CourseAccessService;
+import com.tritagon.studymate.document.CourseDocument;
 import com.tritagon.studymate.document.CourseDocumentNotFoundException;
 import com.tritagon.studymate.document.CourseDocumentRepository;
 
@@ -120,8 +121,11 @@ public class QuizService {
 		List<Long> documentIds = requestedIds.stream().distinct().toList();
 		for (Long documentId : documentIds) {
 			if (documentId == null) throw badRequest("Quiz document IDs must not be null.");
-			documentRepository.findByIdAndCourseId(documentId, courseId)
+			CourseDocument document = documentRepository.findByIdAndCourseId(documentId, courseId)
 					.orElseThrow(() -> new CourseDocumentNotFoundException(documentId));
+			if (!"READY".equals(document.processingStatus())) {
+				throw badRequest("Quiz source document " + documentId + " must be ready.");
+			}
 		}
 		documentSourceRepository.saveAll(documentIds.stream()
 				.map(documentId -> new QuizDocumentSource(null, quizId, documentId, createdAt)).toList());

@@ -70,7 +70,7 @@ class StudySessionApiIntegrationTests {
 				(id, course_id, file_name, storage_path, content_type, file_size_bytes, processing_status)
 				VALUES (?, ?, ?, ?, ?, ?, ?)
 				""", DOCUMENT_ID, COURSE_ID, "chapter-05.pdf", "owner/chapter-05.pdf",
-				"application/pdf", 1024, "UPLOADED");
+				"application/pdf", 1024, "READY");
 		jdbc.update("""
 				INSERT INTO document_chunks (document_id, chunk_index, content)
 				VALUES (?, ?, ?)
@@ -81,7 +81,7 @@ class StudySessionApiIntegrationTests {
 				(id, course_id, file_name, storage_path, content_type, file_size_bytes, processing_status)
 				VALUES (?, ?, ?, ?, ?, ?, ?)
 				""", OTHER_DOCUMENT_ID, OTHER_COURSE_ID, "private.pdf", "other/private.pdf",
-				"application/pdf", 512, "UPLOADED");
+				"application/pdf", 512, "READY");
 	}
 
 	@Test
@@ -145,6 +145,17 @@ class StudySessionApiIntegrationTests {
 				.andExpect(jsonPath("$.assistantMessage.content").value(
 						"Chưa đủ căn cứ từ tài liệu đã chọn để trả lời câu hỏi này."))
 				.andExpect(jsonPath("$.assistantMessage.citations.length()").value(0));
+	}
+
+	@Test
+	void rejectsDocumentThatIsNotReadyAsStudySource() throws Exception {
+		jdbc.update("UPDATE documents SET processing_status = ? WHERE id = ?", "FAILED", DOCUMENT_ID);
+
+		createSession("""
+				{"courseId":1001,"title":"Unavailable source","documentIds":[2001]}
+				""")
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
 	}
 
 	@Test
