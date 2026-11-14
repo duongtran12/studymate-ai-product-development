@@ -1,5 +1,9 @@
 import { apiRequest } from "./apiClient";
 
+export function getAiStatus(signal) {
+  return apiRequest("/api/v1/ai/status", { signal });
+}
+
 export function getCourseQuizzes(courseId, signal) {
   return apiRequest(`/api/v1/courses/${courseId}/quizzes`, { signal });
 }
