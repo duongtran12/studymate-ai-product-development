@@ -3,6 +3,7 @@
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, select, textarea { font: inherit; }
 button { transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+.logout-button { background: transparent; border: 0; color: #b9c8f1; cursor: pointer; display: block; font: inherit; margin-top: 9px; padding: 0; text-decoration: underline; }
 a { color: inherit; }
 
 .application-layout { background: linear-gradient(135deg, #f7f8ff 0%, #eef6ff 48%, #f6f0ff 100%); display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }

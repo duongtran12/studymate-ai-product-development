@@ -1,4 +1,4 @@
-import { apiRequest, saveSessionToken } from "./apiClient";
+import { apiRequest, clearSessionToken, saveSessionToken } from "./apiClient";
 
 export async function registerAccount(account) {
   const response = await apiRequest("/api/v1/auth/register", {
@@ -18,4 +18,12 @@ export async function loginAccount(credentials) {
   });
   saveSessionToken(response.token);
   return response;
+}
+
+export async function logoutAccount() {
+  try {
+    await apiRequest("/api/v1/auth/logout", { method: "POST" });
+  } finally {
+    clearSessionToken();
+  }
 }
