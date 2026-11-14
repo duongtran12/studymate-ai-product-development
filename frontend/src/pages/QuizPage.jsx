@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getUserErrorMessage } from "../api/apiError";
 import { getCourses } from "../api/courseApi";
 import { getDocuments } from "../api/documentLibraryApi";
-import { createQuiz, getCourseQuizzes, getQuizAttempts, submitQuizAttempt } from "../api/quizApi";
+import { createQuiz, deleteQuiz, getCourseQuizzes, getQuizAttempts, submitQuizAttempt } from "../api/quizApi";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
@@ -20,6 +20,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   const [attempt, setAttempt] = useState(null);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+	const [deletingQuiz, setDeletingQuiz] = useState(false);
   const [showCreator, setShowCreator] = useState(false);
   const [draft, setDraft] = useState({ title: "", questionText: "", options: "", answerText: "", explanation: "" });
   const [creatorError, setCreatorError] = useState("");
@@ -114,6 +115,18 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     } catch (requestFailure) { setSubmitError(getUserErrorMessage(requestFailure)); }
     finally { setSubmitting(false); }
   }
+  async function removeQuiz() {
+    if (!activeQuiz || !window.confirm(`Xóa bộ quiz “${activeQuiz.title}” và lịch sử làm bài?`)) return;
+    setDeletingQuiz(true);
+    setSubmitError("");
+    try {
+      await deleteQuiz(activeQuiz.id);
+      setQuizzes((current) => current.filter((item) => item.id !== activeQuiz.id));
+      setQuizId("");
+      resetAttempt();
+    } catch (requestFailure) { setSubmitError(getUserErrorMessage(requestFailure)); }
+    finally { setDeletingQuiz(false); }
+  }
 
   if (busy) return <section className="page-section"><LoadingState message="Đang chuẩn bị quiz…" /></section>;
   if (requestError) return <section className="page-section"><ErrorState message={requestError} onRetry={error || coursesError ? (onRetry ?? retryCourses) : retryQuizzes} /></section>;
@@ -138,7 +151,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
         {attempt?.local && question.explanation && <p className="quiz-explanation">{question.explanation}</p>}
       </div>)}
       {attempt && <div className="quiz-feedback"><strong>{attempt.correctCount === attempt.questionCount ? "Chính xác." : "Đã nộp bài."}</strong><p>Bạn đúng {attempt.correctCount}/{attempt.questionCount} câu, đạt {attempt.score}%.</p>{suppliedQuiz?.source && <span>Nguồn: {suppliedQuiz.source}</span>}</div>}
-      <div className="quiz-actions"><button className="secondary-button" disabled={submitting} onClick={resetAttempt} type="button">Làm lại</button><button className="primary-button" disabled={!complete || Boolean(attempt) || submitting} onClick={submit} type="button">{submitting ? "Đang nộp…" : "Nộp câu trả lời"}</button></div>
+      <div className="quiz-actions"><button className="text-button danger" disabled={submitting || deletingQuiz} onClick={removeQuiz} type="button">{deletingQuiz ? "Đang xóa…" : "Xóa quiz"}</button><button className="secondary-button" disabled={submitting || deletingQuiz} onClick={resetAttempt} type="button">Làm lại</button><button className="primary-button" disabled={!complete || Boolean(attempt) || submitting || deletingQuiz} onClick={submit} type="button">{submitting ? "Đang nộp…" : "Nộp câu trả lời"}</button></div>
     </article>
     {!suppliedQuiz && <QuizHistory attempts={attempts} loading={loadingAttempts} error={attemptsError} onRetry={retryAttempts} />}
   </section>;

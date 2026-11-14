@@ -1,6 +1,8 @@
 package com.tritagon.studymate.quiz;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -134,6 +136,24 @@ class QuizApiIntegrationTests {
 					]}
 					""".formatted(OTHER_DOCUMENT_ID)))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void ownerCanDeleteQuizAndItsAttemptHistory() throws Exception {
+		MvcResult created = createQuiz(COURSE_ID, OWNER_ID).andExpect(status().isCreated()).andReturn();
+		long quizId = responseId(created);
+		long questionId = responseQuestionId(created, 0);
+		mockMvc.perform(post("/api/v1/quizzes/{quizId}/attempts", quizId)
+				.header("X-User-Id", OWNER_ID).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"answers\":[{\"questionId\":%d,\"answerText\":\"Unit test\"}]}".formatted(questionId)))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(delete("/api/v1/quizzes/{quizId}", quizId).header("X-User-Id", OWNER_ID))
+				.andExpect(status().isNoContent());
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quizzes", Integer.class)).isZero();
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempts", Integer.class)).isZero();
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempt_answers", Integer.class)).isZero();
 	}
 
 	private org.springframework.test.web.servlet.ResultActions createQuiz(long courseId, long userId) throws Exception {

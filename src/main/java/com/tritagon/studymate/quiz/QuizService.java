@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,11 +37,12 @@ public class QuizService {
 	private final QuizDocumentSourceRepository documentSourceRepository;
 	private final CourseDocumentRepository documentRepository;
 	private final ObjectMapper objectMapper;
+	private final JdbcTemplate jdbcTemplate;
 
 	public QuizService(CourseAccessService courseAccessService, QuizRepository quizRepository,
 			QuizQuestionRepository questionRepository, QuizAttemptRepository attemptRepository,
 			QuizAttemptAnswerRepository attemptAnswerRepository, QuizDocumentSourceRepository documentSourceRepository,
-			CourseDocumentRepository documentRepository, ObjectMapper objectMapper) {
+			CourseDocumentRepository documentRepository, ObjectMapper objectMapper, JdbcTemplate jdbcTemplate) {
 		this.courseAccessService = courseAccessService;
 		this.quizRepository = quizRepository;
 		this.questionRepository = questionRepository;
@@ -49,6 +51,7 @@ public class QuizService {
 		this.documentSourceRepository = documentSourceRepository;
 		this.documentRepository = documentRepository;
 		this.objectMapper = objectMapper;
+		this.jdbcTemplate = jdbcTemplate;
 	}
 
 	public List<QuizResponse> list(Long userId, Long courseId) {
@@ -65,6 +68,15 @@ public class QuizService {
 		findOwnedQuiz(userId, quizId);
 		return attemptRepository.findAllByQuizIdAndUserIdOrderByCreatedAtDesc(quizId, userId).stream()
 				.map(QuizAttemptHistoryResponse::from).toList();
+	}
+
+	@Transactional
+	public void delete(Long userId, Long quizId) {
+		Quiz quiz = findOwnedQuiz(userId, quizId);
+		jdbcTemplate.update("DELETE FROM quiz_attempt_answers WHERE attempt_id IN (SELECT id FROM quiz_attempts WHERE quiz_id = ?)", quiz.id());
+		jdbcTemplate.update("DELETE FROM quiz_attempts WHERE quiz_id = ?", quiz.id());
+		jdbcTemplate.update("DELETE FROM quiz_document_sources WHERE quiz_id = ?", quiz.id());
+		quizRepository.delete(quiz);
 	}
 
 	@Transactional
