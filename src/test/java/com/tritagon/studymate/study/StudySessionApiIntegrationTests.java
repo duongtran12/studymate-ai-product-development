@@ -52,6 +52,7 @@ class StudySessionApiIntegrationTests {
 		jdbc.update("DELETE FROM study_session_documents");
 		jdbc.update("DELETE FROM chat_messages");
 		jdbc.update("DELETE FROM study_sessions");
+		jdbc.update("DELETE FROM document_chunks");
 		jdbc.update("DELETE FROM documents");
 		jdbc.update("DELETE FROM courses");
 		jdbc.update("DELETE FROM users");
@@ -70,6 +71,11 @@ class StudySessionApiIntegrationTests {
 				VALUES (?, ?, ?, ?, ?, ?, ?)
 				""", DOCUMENT_ID, COURSE_ID, "chapter-05.pdf", "owner/chapter-05.pdf",
 				"application/pdf", 1024, "UPLOADED");
+		jdbc.update("""
+				INSERT INTO document_chunks (document_id, chunk_index, content)
+				VALUES (?, ?, ?)
+				""", DOCUMENT_ID, 0,
+				"Dependency injection gives an object its dependencies instead of creating them directly.");
 		jdbc.update("""
 				INSERT INTO documents
 				(id, course_id, file_name, storage_path, content_type, file_size_bytes, processing_status)

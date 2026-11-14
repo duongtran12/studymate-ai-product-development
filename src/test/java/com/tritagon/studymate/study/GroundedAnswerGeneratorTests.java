@@ -20,6 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.tritagon.studymate.document.CourseDocument;
 import com.tritagon.studymate.document.CourseDocumentNotFoundException;
 import com.tritagon.studymate.document.CourseDocumentRepository;
+import com.tritagon.studymate.document.DocumentChunk;
+import com.tritagon.studymate.document.DocumentChunkRepository;
 
 @ExtendWith(MockitoExtension.class)
 class GroundedAnswerGeneratorTests {
@@ -30,11 +32,14 @@ class GroundedAnswerGeneratorTests {
 	@Mock
 	private CourseDocumentRepository documentRepository;
 
+	@Mock
+	private DocumentChunkRepository documentChunkRepository;
+
 	private MockGroundedAnswerGenerator generator;
 
 	@BeforeEach
 	void setUp() {
-		generator = new MockGroundedAnswerGenerator(documentRepository);
+		generator = new MockGroundedAnswerGenerator(documentRepository, documentChunkRepository);
 	}
 
 	@Test
@@ -52,6 +57,10 @@ class GroundedAnswerGeneratorTests {
 	void selectedDocumentReturnsSupportedAnswerWithCitation() {
 		CourseDocument document = document();
 		when(documentRepository.findByIdAndCourseId(DOCUMENT_ID, COURSE_ID)).thenReturn(Optional.of(document));
+		when(documentChunkRepository.findAllByDocumentIdOrderByChunkIndexAsc(DOCUMENT_ID)).thenReturn(List.of(
+				new DocumentChunk(91L, DOCUMENT_ID, 0,
+						"Dependency injection gives an object its dependencies instead of creating them directly.",
+						OffsetDateTime.now())));
 
 		GroundedAnswer answer = generator.generate(request(List.of(DOCUMENT_ID)));
 

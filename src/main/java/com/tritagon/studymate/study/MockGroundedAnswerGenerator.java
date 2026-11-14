@@ -1,12 +1,19 @@
 package com.tritagon.studymate.study;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import com.tritagon.studymate.document.CourseDocument;
 import com.tritagon.studymate.document.CourseDocumentNotFoundException;
 import com.tritagon.studymate.document.CourseDocumentRepository;
+import com.tritagon.studymate.document.DocumentChunk;
+import com.tritagon.studymate.document.DocumentChunkRepository;
 
 @Service
 public class MockGroundedAnswerGenerator implements GroundedAnswerGenerator {
@@ -15,9 +22,12 @@ public class MockGroundedAnswerGenerator implements GroundedAnswerGenerator {
 			"Chưa đủ căn cứ từ tài liệu đã chọn để trả lời câu hỏi này.";
 
 	private final CourseDocumentRepository documentRepository;
+	private final DocumentChunkRepository documentChunkRepository;
 
-	public MockGroundedAnswerGenerator(CourseDocumentRepository documentRepository) {
+	public MockGroundedAnswerGenerator(CourseDocumentRepository documentRepository,
+			DocumentChunkRepository documentChunkRepository) {
 		this.documentRepository = documentRepository;
+		this.documentChunkRepository = documentChunkRepository;
 	}
 
 	@Override
@@ -26,18 +36,53 @@ public class MockGroundedAnswerGenerator implements GroundedAnswerGenerator {
 			return new GroundedAnswer(INSUFFICIENT_CONTEXT_MESSAGE, GroundingStatus.INSUFFICIENT_CONTEXT, List.of());
 		}
 
-		Long documentId = request.documentIds().getFirst();
-		CourseDocument document = documentRepository.findByIdAndCourseId(documentId, request.courseId())
+		Set<String> questionTerms = terms(request.question());
+		List<RankedChunk> matches = request.documentIds().stream()
+				.map(documentId -> findDocument(documentId, request.courseId()))
+				.flatMap(document -> documentChunkRepository.findAllByDocumentIdOrderByChunkIndexAsc(document.id()).stream()
+						.map(chunk -> new RankedChunk(document, chunk, overlap(questionTerms, chunk.content()))))
+				.filter(match -> match.score() > 0)
+				.sorted(Comparator.comparingInt(RankedChunk::score).reversed()
+						.thenComparing(match -> match.document().id())
+						.thenComparing(match -> match.chunk().chunkIndex()))
+				.limit(2)
+				.toList();
+		if (matches.isEmpty()) {
+			return new GroundedAnswer(INSUFFICIENT_CONTEXT_MESSAGE, GroundingStatus.INSUFFICIENT_CONTEXT, List.of());
+		}
+		List<CitationResponse> citations = matches.stream().map(this::citation).toList();
+		String answer = matches.stream()
+				.map(match -> excerpt(match.chunk().content(), 420))
+				.collect(Collectors.joining("\n\n"));
+		return new GroundedAnswer(answer, GroundingStatus.SUPPORTED, citations);
+	}
+
+	private CourseDocument findDocument(Long documentId, Long courseId) {
+		return documentRepository.findByIdAndCourseId(documentId, courseId)
 				.orElseThrow(() -> new CourseDocumentNotFoundException(documentId));
-		CitationResponse citation = new CitationResponse(
-				document.id(),
-				document.fileName(),
-				"Tài liệu đã chọn",
-				"Citation mô phỏng; nội dung tài liệu chưa được trích xuất ở Chương 6.");
-		return new GroundedAnswer(
-				"Đây là phản hồi mô phỏng cho giai đoạn lưu lịch sử hội thoại. "
-						+ "Nội dung AI/RAG sẽ được bổ sung ở giai đoạn tiếp theo.",
-				GroundingStatus.SUPPORTED,
-				List.of(citation));
+	}
+
+	private CitationResponse citation(RankedChunk match) {
+		return new CitationResponse(match.document().id(), match.document().fileName(),
+				"Đoạn " + (match.chunk().chunkIndex() + 1), excerpt(match.chunk().content(), 240));
+	}
+
+	private int overlap(Set<String> questionTerms, String content) {
+		return (int) terms(content).stream().filter(questionTerms::contains).count();
+	}
+
+	private Set<String> terms(String value) {
+		return Pattern.compile("[^\\p{L}\\p{N}]+")
+				.splitAsStream(value.toLowerCase(Locale.ROOT))
+				.filter(term -> term.length() >= 3)
+				.collect(Collectors.toSet());
+	}
+
+	private String excerpt(String content, int maxLength) {
+		String normalized = content.replaceAll("\\s+", " ").trim();
+		return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength).trim() + "…";
+	}
+
+	private record RankedChunk(CourseDocument document, DocumentChunk chunk, int score) {
 	}
 }
