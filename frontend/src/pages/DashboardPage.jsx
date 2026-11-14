@@ -37,7 +37,9 @@ export default function DashboardPage() {
     retry: retryCourses,
     cancel: cancelCourses,
   } = useAsyncRequest(getCourses, { initialData: [], initialLoading: true });
-  const requestActivity = useCallback((signal) => getStudyActivity(signal, courses), [courses]);
+  const [activityCourseId, setActivityCourseId] = useState("");
+  const requestActivity = useCallback((signal) => getStudyActivity(signal,
+    activityCourseId ? courses.filter((course) => String(course.id) === activityCourseId) : courses), [activityCourseId, courses]);
   const { data: activity, loading: loadingActivity, error: activityError, run: loadActivity, cancel: cancelActivity } = useAsyncRequest(requestActivity, {
     initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [] },
   });
@@ -57,6 +59,12 @@ export default function DashboardPage() {
     loadActivity();
     return cancelActivity;
   }, [cancelActivity, loadActivity]);
+
+  useEffect(() => {
+    if (activityCourseId && !courses.some((course) => String(course.id) === activityCourseId)) {
+      setActivityCourseId("");
+    }
+  }, [activityCourseId, courses]);
 
   async function submitCourse(payload) {
     if (submitting) return false;
@@ -160,7 +168,7 @@ export default function DashboardPage() {
       {notice && <p className="request-message request-success" role="status">{notice}</p>}
 
       <section className="dashboard-activity" aria-labelledby="activity-title">
-        <div><p className="eyebrow">Tiến độ</p><h2 id="activity-title">Hoạt động học tập</h2></div>
+        <div className="activity-heading"><div><p className="eyebrow">Tiến độ</p><h2 id="activity-title">Hoạt động học tập</h2></div>{courses.length > 1 && <label className="activity-filter"><span>Phạm vi</span><select value={activityCourseId} onChange={(event) => setActivityCourseId(event.target.value)}><option value="">Tất cả môn học</option>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></label>}</div>
         {activityError ? <p className="activity-message">Không thể tải tổng quan hoạt động lúc này.</p> : loadingActivity ? <p className="activity-message">Đang tổng hợp tiến độ…</p> : <><div className="course-overview-stats">
           <article><strong>{activity.readyDocuments}</strong><span>Tài liệu sẵn sàng</span></article>
           <article><strong>{activity.quizCount}</strong><span>Quiz đã tạo</span></article>
