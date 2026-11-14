@@ -53,6 +53,12 @@ public class AuthService {
 		return createSession(user, OffsetDateTime.now());
 	}
 
+	public void logout(String authorization) {
+		if (authorization == null || !authorization.startsWith("Bearer ")) return;
+		String token = authorization.substring("Bearer ".length()).trim();
+		if (!token.isBlank()) authSessionRepository.deleteByTokenHash(hash(token));
+	}
+
 	private AuthResponse createSession(UserAccount user, OffsetDateTime now) {
 		String token = token();
 		authSessionRepository.save(new AuthSession(null, user.id(), hash(token), now.plusDays(7), now));
