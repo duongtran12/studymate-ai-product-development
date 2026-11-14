@@ -18,3 +18,8 @@ server:
 studymate:
   storage:
     local-root: ${STUDYMATE_STORAGE_LOCAL_ROOT:./data/uploads}
+  ai:
+    enabled: ${STUDYMATE_AI_ENABLED:false}
+    base-url: ${STUDYMATE_AI_BASE_URL:https://api.openai.com/v1}
+    model: ${STUDYMATE_AI_MODEL:}
+    api-key: ${STUDYMATE_AI_API_KEY:}

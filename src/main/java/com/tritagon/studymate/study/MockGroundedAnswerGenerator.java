@@ -3,6 +3,7 @@ package com.tritagon.studymate.study;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -23,11 +24,14 @@ public class MockGroundedAnswerGenerator implements GroundedAnswerGenerator {
 
 	private final CourseDocumentRepository documentRepository;
 	private final DocumentChunkRepository documentChunkRepository;
+	private final Optional<OpenAiCompatibleGroundedAnswerRewriter> answerRewriter;
 
 	public MockGroundedAnswerGenerator(CourseDocumentRepository documentRepository,
-			DocumentChunkRepository documentChunkRepository) {
+			DocumentChunkRepository documentChunkRepository,
+			Optional<OpenAiCompatibleGroundedAnswerRewriter> answerRewriter) {
 		this.documentRepository = documentRepository;
 		this.documentChunkRepository = documentChunkRepository;
+		this.answerRewriter = answerRewriter;
 	}
 
 	@Override
@@ -51,9 +55,11 @@ public class MockGroundedAnswerGenerator implements GroundedAnswerGenerator {
 			return new GroundedAnswer(INSUFFICIENT_CONTEXT_MESSAGE, GroundingStatus.INSUFFICIENT_CONTEXT, List.of());
 		}
 		List<CitationResponse> citations = matches.stream().map(this::citation).toList();
-		String answer = matches.stream()
+		String fallbackAnswer = matches.stream()
 				.map(match -> excerpt(match.chunk().content(), 420))
 				.collect(Collectors.joining("\n\n"));
+		String answer = answerRewriter.flatMap(rewriter -> rewriter.rewrite(request.question(), citations))
+				.orElse(fallbackAnswer);
 		return new GroundedAnswer(answer, GroundingStatus.SUPPORTED, citations);
 	}
 

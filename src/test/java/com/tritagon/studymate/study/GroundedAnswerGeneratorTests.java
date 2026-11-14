@@ -39,7 +39,7 @@ class GroundedAnswerGeneratorTests {
 
 	@BeforeEach
 	void setUp() {
-		generator = new MockGroundedAnswerGenerator(documentRepository, documentChunkRepository);
+		generator = new MockGroundedAnswerGenerator(documentRepository, documentChunkRepository, Optional.empty());
 	}
 
 	@Test
