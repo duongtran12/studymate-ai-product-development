@@ -139,6 +139,25 @@ class CourseDocumentApiIntegrationTests {
 	}
 
 	@Test
+	void ownerCanReprocessExistingDocument() throws Exception {
+		MockMultipartFile file = new MockMultipartFile("file", "reprocess.docx",
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			docx("A component accepts dependencies through its constructor."));
+		MvcResult uploadResult = mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
+				.file(file).header("X-User-Id", OWNER_ID))
+				.andExpect(status().isCreated()).andReturn();
+		long documentId = ((Number) com.jayway.jsonpath.JsonPath.read(
+				uploadResult.getResponse().getContentAsString(), "$.id")).longValue();
+
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+				"/api/v1/courses/{courseId}/documents/{documentId}/reprocess", COURSE_ID, documentId)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(documentId))
+				.andExpect(jsonPath("$.processingStatus").value("READY"));
+	}
+
+	@Test
 	void rejectsUploadWhenMultipartFileIsMissing() throws Exception {
 		mockMvc.perform(multipart("/api/v1/courses/{courseId}/documents", COURSE_ID)
 				.header("X-User-Id", OWNER_ID))

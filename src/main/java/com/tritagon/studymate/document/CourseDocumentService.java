@@ -75,6 +75,19 @@ public class CourseDocumentService {
 	}
 
 	@Transactional
+	public CourseDocumentResponse reprocess(Long ownerId, Long courseId, Long documentId) {
+		ensureOwnedCourse(ownerId, courseId);
+		CourseDocument document = findDocument(courseId, documentId);
+		CourseDocument processing = withStatus(document, "PROCESSING");
+		try {
+			documentIngestionService.ingest(processing);
+			return CourseDocumentResponse.from(withStatus(processing, "READY"));
+		} catch (RuntimeException exception) {
+			return CourseDocumentResponse.from(withStatus(processing, "FAILED"));
+		}
+	}
+
+	@Transactional
 	public void delete(Long ownerId, Long courseId, Long documentId) {
 		ensureOwnedCourse(ownerId, courseId);
 		CourseDocument document = findDocument(courseId, documentId);

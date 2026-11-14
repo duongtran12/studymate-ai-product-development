@@ -6,6 +6,7 @@ import {
   deleteDocument,
   getCourses,
   getDocuments,
+  reprocessDocument,
 } from "../api/documentLibraryApi";
 import { getUserErrorMessage } from "../api/apiError";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
@@ -48,6 +49,7 @@ export default function DocumentLibraryPage() {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+	const [reprocessingId, setReprocessingId] = useState(null);
   const [deleteError, setDeleteError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -87,6 +89,24 @@ export default function DocumentLibraryPage() {
       setDeleteError(getUserErrorMessage(requestError));
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function reprocess(document) {
+    if (reprocessingId !== null || deletingId !== null) return;
+    setReprocessingId(document.id);
+    setDeleteError("");
+    setNotice("");
+    try {
+      const updated = await reprocessDocument(selectedCourseId, document.id);
+      setDocuments((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setNotice(updated.processingStatus === "READY"
+        ? `Đã xử lý xong “${updated.fileName}”.`
+        : `Không thể đọc nội dung “${updated.fileName}”. Bạn có thể tải lại một tệp khác.`);
+    } catch (requestError) {
+      setDeleteError(getUserErrorMessage(requestError));
+    } finally {
+      setReprocessingId(null);
     }
   }
 
@@ -135,7 +155,7 @@ export default function DocumentLibraryPage() {
       <DocumentUploadPanel
         key={selectedCourseId}
         courseId={selectedCourseId}
-        disabled={busy || deletingId !== null}
+        disabled={busy || deletingId !== null || reprocessingId !== null}
         onBusyChange={handleUploadBusyChange}
         onUploaded={(document) => setDocuments((current) => [document, ...current])}
       />
@@ -159,7 +179,8 @@ export default function DocumentLibraryPage() {
               <div><h2>{document.fileName}</h2><p>{formatFileSize(document.fileSizeBytes)} · {new Date(document.createdAt).toLocaleDateString("vi-VN")}</p></div>
               <div className="document-actions">
                 <span className={`status-badge status-${status}`}>{statusLabels[status] ?? document.processingStatus}</span>
-                <button className="text-button danger" disabled={deletingId !== null || uploading} onClick={() => removeDocument(document)}>{deletingId === document.id ? "Đang xóa…" : "Xóa"}</button>
+                {status !== "ready" && <button className="text-button" disabled={deletingId !== null || reprocessingId !== null || uploading} onClick={() => reprocess(document)}>{reprocessingId === document.id ? "Đang xử lý…" : "Thử xử lý lại"}</button>}
+                <button className="text-button danger" disabled={deletingId !== null || reprocessingId !== null || uploading} onClick={() => removeDocument(document)}>{deletingId === document.id ? "Đang xóa…" : "Xóa"}</button>
               </div>
             </article>;
           })}

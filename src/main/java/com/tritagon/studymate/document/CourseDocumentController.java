@@ -45,6 +45,12 @@ public class CourseDocumentController {
 		return ResponseEntity.created(location).body(document);
 	}
 
+	@PostMapping("/{documentId}/reprocess")
+	public CourseDocumentResponse reprocess(@CurrentUserId Long userId, @PathVariable Long courseId,
+			@PathVariable Long documentId) {
+		return documentService.reprocess(userId, courseId, documentId);
+	}
+
 	@DeleteMapping("/{documentId}")
 	public ResponseEntity<Void> delete(@CurrentUserId Long userId, @PathVariable Long courseId,
 			@PathVariable Long documentId) {
