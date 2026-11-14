@@ -46,6 +46,14 @@ public class LocalDocumentStorage {
 		}
 	}
 
+	public InputStream open(String storagePath) {
+		try {
+			return Files.newInputStream(resolve(storagePath));
+		} catch (IOException exception) {
+			throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not read the stored document.", exception);
+		}
+	}
+
 	private Path resolve(String relativePath) {
 		Path resolved = root.resolve(relativePath).normalize();
 		if (!resolved.startsWith(root)) {
