@@ -9,6 +9,10 @@ export function getStudySession(sessionId, signal) {
   return apiRequest(`/api/v1/study-sessions/${sessionId}`, { signal });
 }
 
+export function deleteStudySession(sessionId) {
+  return apiRequest(`/api/v1/study-sessions/${sessionId}`, { method: "DELETE" });
+}
+
 export function createStudySession(payload) {
   return apiRequest("/api/v1/study-sessions", {
     method: "POST",

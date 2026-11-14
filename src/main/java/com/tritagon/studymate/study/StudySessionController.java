@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,6 +41,12 @@ public class StudySessionController {
 	@GetMapping("/{sessionId}")
 	public StudySessionResponse get(@CurrentUserId Long userId, @PathVariable Long sessionId) {
 		return sessionService.get(userId, sessionId);
+	}
+
+	@DeleteMapping("/{sessionId}")
+	public ResponseEntity<Void> delete(@CurrentUserId Long userId, @PathVariable Long sessionId) {
+		sessionService.delete(userId, sessionId);
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/{sessionId}/messages")

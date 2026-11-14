@@ -2,6 +2,7 @@ package com.tritagon.studymate.study;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -145,6 +146,26 @@ class StudySessionApiIntegrationTests {
 				.andExpect(jsonPath("$.assistantMessage.content").value(
 						"Chưa đủ căn cứ từ tài liệu đã chọn để trả lời câu hỏi này."))
 				.andExpect(jsonPath("$.assistantMessage.citations.length()").value(0));
+	}
+
+	@Test
+	void ownerCanDeleteSessionAndItsMessages() throws Exception {
+		long sessionId = responseId(createSession("""
+				{"courseId":1001,"title":"Session to delete","documentIds":[2001]}
+				""").andExpect(status().isCreated()).andReturn());
+		mockMvc.perform(post("/api/v1/study-sessions/{sessionId}/messages", sessionId)
+				.header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"question\":\"Dependency injection là gì?\"}"))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(delete("/api/v1/study-sessions/{sessionId}", sessionId)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isNoContent());
+
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_sessions", Integer.class)).isZero();
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM chat_messages", Integer.class)).isZero();
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM study_session_documents", Integer.class)).isZero();
 	}
 
 	@Test

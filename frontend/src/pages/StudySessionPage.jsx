@@ -4,6 +4,7 @@ import { getDocuments } from "../api/documentLibraryApi";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import {
   createStudySession,
+	deleteStudySession,
   getStudySession,
   getStudySessionMessages,
   getStudySessions,
@@ -181,6 +182,23 @@ export default function StudySessionPage() {
     }
   }
 
+  async function removeActiveSession() {
+    if (!activeSessionId || !window.confirm("Xóa phiên học này và toàn bộ lịch sử trò chuyện?")) return;
+    setSending(true);
+    setMutationError("");
+    try {
+      await deleteStudySession(activeSessionId);
+      setSessions((current) => current.filter((session) => String(session.id) !== activeSessionId));
+      setActiveSessionId(newSessionValue);
+      setSelectedDocumentIds([]);
+      setMessages([]);
+    } catch (requestError) {
+      setMutationError(getUserErrorMessage(requestError));
+    } finally {
+      setSending(false);
+    }
+  }
+
   const loading = loadingCourses || loadingCourseData || loadingSession;
   const error = mutationError || sessionError || courseDataError || coursesError;
   const retry = coursesError ? retryCourses : courseDataError ? retryCourseData : sessionError ? retrySessionData : null;
@@ -203,6 +221,7 @@ export default function StudySessionPage() {
           <option value="">+ Tạo phiên học mới</option>
           {sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
         </select>
+        {activeSessionId && <button className="text-button danger" type="button" disabled={sending || loadingSession} onClick={removeActiveSession}>Xóa phiên học này</button>}
 
         <fieldset disabled={loading || sending || Boolean(activeSessionId) || !selectedCourseId}>
           <legend>Tài liệu làm nguồn</legend>

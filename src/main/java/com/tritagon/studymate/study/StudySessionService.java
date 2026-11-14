@@ -79,6 +79,11 @@ public class StudySessionService {
 		return toSessionResponse(findOwnedSession(userId, sessionId));
 	}
 
+	@Transactional
+	public void delete(Long userId, Long sessionId) {
+		sessionRepository.delete(findOwnedSession(userId, sessionId));
+	}
+
 	public List<ChatMessageResponse> messages(Long userId, Long sessionId) {
 		findOwnedSession(userId, sessionId);
 		return messageRepository.findAllBySessionIdOrderByCreatedAtAscIdAsc(sessionId).stream()
