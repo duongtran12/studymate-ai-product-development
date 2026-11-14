@@ -37,6 +37,12 @@ public class CourseDocumentController {
 		return documentService.get(userId, courseId, documentId);
 	}
 
+	@GetMapping("/{documentId}/preview")
+	public DocumentPreviewResponse preview(@CurrentUserId Long userId, @PathVariable Long courseId,
+			@PathVariable Long documentId) {
+		return documentService.preview(userId, courseId, documentId);
+	}
+
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<CourseDocumentResponse> upload(@CurrentUserId Long userId,
 			@PathVariable Long courseId, @RequestPart("file") MultipartFile file) {

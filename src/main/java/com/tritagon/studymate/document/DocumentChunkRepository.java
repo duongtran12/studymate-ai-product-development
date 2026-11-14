@@ -8,5 +8,9 @@ public interface DocumentChunkRepository extends CrudRepository<DocumentChunk, L
 
 	List<DocumentChunk> findAllByDocumentIdOrderByChunkIndexAsc(Long documentId);
 
+	List<DocumentChunk> findTop3ByDocumentIdOrderByChunkIndexAsc(Long documentId);
+
+	long countByDocumentId(Long documentId);
+
 	void deleteByDocumentId(Long documentId);
 }

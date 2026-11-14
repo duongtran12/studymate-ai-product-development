@@ -17,15 +17,17 @@ public class CourseDocumentService {
 	private final LocalDocumentStorage storage;
 	private final DocumentUploadValidator documentUploadValidator;
 	private final DocumentIngestionService documentIngestionService;
+	private final DocumentChunkRepository documentChunkRepository;
 
 	public CourseDocumentService(CourseAccessService courseAccessService, CourseDocumentRepository documentRepository,
 			LocalDocumentStorage storage, DocumentUploadValidator documentUploadValidator,
-			DocumentIngestionService documentIngestionService) {
+			DocumentIngestionService documentIngestionService, DocumentChunkRepository documentChunkRepository) {
 		this.courseAccessService = courseAccessService;
 		this.documentRepository = documentRepository;
 		this.storage = storage;
 		this.documentUploadValidator = documentUploadValidator;
 		this.documentIngestionService = documentIngestionService;
+		this.documentChunkRepository = documentChunkRepository;
 	}
 
 	public List<CourseDocumentResponse> list(Long ownerId, Long courseId) {
@@ -38,6 +40,16 @@ public class CourseDocumentService {
 	public CourseDocumentResponse get(Long ownerId, Long courseId, Long documentId) {
 		ensureOwnedCourse(ownerId, courseId);
 		return CourseDocumentResponse.from(findDocument(courseId, documentId));
+	}
+
+	public DocumentPreviewResponse preview(Long ownerId, Long courseId, Long documentId) {
+		ensureOwnedCourse(ownerId, courseId);
+		CourseDocument document = findDocument(courseId, documentId);
+		long chunkCount = documentChunkRepository.countByDocumentId(document.id());
+		List<String> excerpts = documentChunkRepository.findTop3ByDocumentIdOrderByChunkIndexAsc(document.id()).stream()
+				.map(chunk -> previewExcerpt(chunk.content()))
+				.toList();
+		return new DocumentPreviewResponse(document.id(), document.processingStatus(), chunkCount, excerpts);
 	}
 
 	@Transactional
@@ -102,6 +114,11 @@ public class CourseDocumentService {
 	private CourseDocument findDocument(Long courseId, Long documentId) {
 		return documentRepository.findByIdAndCourseId(documentId, courseId)
 				.orElseThrow(() -> new CourseDocumentNotFoundException(documentId));
+	}
+
+	private String previewExcerpt(String content) {
+		String normalized = content.replaceAll("\\s+", " ").trim();
+		return normalized.length() <= 360 ? normalized : normalized.substring(0, 360).trim() + "…";
 	}
 
 }

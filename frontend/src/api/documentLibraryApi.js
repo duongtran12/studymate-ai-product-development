@@ -18,3 +18,7 @@ export function deleteDocument(courseId, documentId) {
 export function reprocessDocument(courseId, documentId) {
   return apiRequest(`/api/v1/courses/${courseId}/documents/${documentId}/reprocess`, { method: "POST" });
 }
+
+export function getDocumentPreview(courseId, documentId) {
+  return apiRequest(`/api/v1/courses/${courseId}/documents/${documentId}/preview`);
+}

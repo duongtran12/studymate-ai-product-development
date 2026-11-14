@@ -5,6 +5,7 @@ import DocumentUploadPanel from "../components/DocumentUploadPanel";
 import {
   deleteDocument,
   getCourses,
+  getDocumentPreview,
   getDocuments,
   reprocessDocument,
 } from "../api/documentLibraryApi";
@@ -49,7 +50,9 @@ export default function DocumentLibraryPage() {
   const [selectedCourseId, setSelectedCourseId] = useState(initialCourseId);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-	const [reprocessingId, setReprocessingId] = useState(null);
+  const [reprocessingId, setReprocessingId] = useState(null);
+  const [loadingPreviewId, setLoadingPreviewId] = useState(null);
+  const [previews, setPreviews] = useState({});
   const [deleteError, setDeleteError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -107,6 +110,27 @@ export default function DocumentLibraryPage() {
       setDeleteError(getUserErrorMessage(requestError));
     } finally {
       setReprocessingId(null);
+    }
+  }
+
+  async function togglePreview(document) {
+    if (previews[document.id]) {
+      setPreviews((current) => {
+        const next = { ...current };
+        delete next[document.id];
+        return next;
+      });
+      return;
+    }
+    setLoadingPreviewId(document.id);
+    setDeleteError("");
+    try {
+      const preview = await getDocumentPreview(selectedCourseId, document.id);
+      setPreviews((current) => ({ ...current, [document.id]: preview }));
+    } catch (requestError) {
+      setDeleteError(getUserErrorMessage(requestError));
+    } finally {
+      setLoadingPreviewId(null);
     }
   }
 
@@ -175,13 +199,16 @@ export default function DocumentLibraryPage() {
         <div className="document-list">
           {documents.map((document) => {
             const status = document.processingStatus.toLowerCase();
+            const preview = previews[document.id];
             return <article className="document-row" key={document.id}>
               <div><h2>{document.fileName}</h2><p>{formatFileSize(document.fileSizeBytes)} · {new Date(document.createdAt).toLocaleDateString("vi-VN")}</p></div>
               <div className="document-actions">
                 <span className={`status-badge status-${status}`}>{statusLabels[status] ?? document.processingStatus}</span>
+                {status === "ready" && <button className="text-button" disabled={loadingPreviewId !== null} onClick={() => togglePreview(document)}>{loadingPreviewId === document.id ? "Đang mở…" : preview ? "Ẩn nội dung" : "Xem nội dung"}</button>}
                 {status !== "ready" && <button className="text-button" disabled={deletingId !== null || reprocessingId !== null || uploading} onClick={() => reprocess(document)}>{reprocessingId === document.id ? "Đang xử lý…" : "Thử xử lý lại"}</button>}
                 <button className="text-button danger" disabled={deletingId !== null || reprocessingId !== null || uploading} onClick={() => removeDocument(document)}>{deletingId === document.id ? "Đang xóa…" : "Xóa"}</button>
               </div>
+              {preview && <div className="document-preview"><strong>StudyMate đã trích xuất {preview.chunkCount} đoạn</strong>{preview.excerpts.length > 0 ? preview.excerpts.map((excerpt, index) => <p key={index}>{excerpt}</p>) : <p>Chưa có nội dung để xem trước.</p>}</div>}
             </article>;
           })}
         </div>

@@ -65,6 +65,9 @@ h2, h3 { color: #1d2848; }
 .document-choice small { color: #68748d; display: block; margin-top: 2px; }
 .document-choice-unavailable, .source-document-unavailable { cursor: not-allowed; opacity: .58; }
 .quiz-source-picker small { color: #667490; font-size: .85rem; }
+.document-row { flex-wrap: wrap; }
+.document-preview { background: #f6f5ff; border-left: 3px solid #7562d7; color: #40506b; flex-basis: 100%; font-size: .9rem; line-height: 1.6; margin-top: 4px; padding: 12px 14px; }
+.document-preview p { margin: 8px 0 0; }
 
 .mobile-navigation { display: none; }
 @media (max-width: 760px) { .application-layout { display: block; padding-bottom: 76px; }.app-sidebar { display: block; min-height: auto; padding: 17px 20px; position: static; }.sidebar-context,.app-sidebar nav,.profile-link,.sidebar-footer { display: none; }.application-content { padding: 32px 20px; }.page-heading,.inline-form,.document-row { align-items: stretch; flex-direction: column; }.page-heading .primary-button { margin-top: 0; }.document-actions { justify-content: flex-start; }.study-layout { grid-template-columns: 1fr; }.chat-panel { min-height: 520px; padding: 16px; }.message { max-width: 100%; }.mobile-navigation { background: #1b254b; bottom: 0; box-shadow: 0 -8px 24px #17233a20; display: flex; gap: 4px; left: 0; overflow-x: auto; padding: 10px; position: fixed; right: 0; z-index: 10; }.mobile-navigation a { border-radius: 8px; color: #cbd5f4; font-size: .78rem; padding: 9px 10px; text-decoration: none; white-space: nowrap; }.mobile-navigation a.active { background: #6755cd; color: #fff; } }

@@ -44,12 +44,15 @@ class CourseDocumentServiceTests {
 	@Mock
 	private DocumentIngestionService documentIngestionService;
 
+	@Mock
+	private DocumentChunkRepository documentChunkRepository;
+
 	private CourseDocumentService service;
 
 	@BeforeEach
 	void setUp() {
 		service = new CourseDocumentService(courseAccessService, documentRepository, storage, documentUploadValidator,
-				documentIngestionService);
+				documentIngestionService, documentChunkRepository);
 	}
 
 	@Test

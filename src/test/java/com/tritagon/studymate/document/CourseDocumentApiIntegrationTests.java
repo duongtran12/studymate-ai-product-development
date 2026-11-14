@@ -104,6 +104,14 @@ class CourseDocumentApiIntegrationTests {
 		assertThat(storedFile).startsWith(STORAGE_ROOT);
 		assertThat(storedFile).exists();
 
+		mockMvc.perform(get("/api/v1/courses/{courseId}/documents/{documentId}/preview", COURSE_ID, documentId)
+				.header("X-User-Id", OWNER_ID))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.documentId").value(documentId))
+				.andExpect(jsonPath("$.processingStatus").value("READY"))
+				.andExpect(jsonPath("$.chunkCount").value(1))
+				.andExpect(jsonPath("$.excerpts[0]").value(org.hamcrest.Matchers.containsString("Software architecture")));
+
 		mockMvc.perform(get("/api/v1/courses/{courseId}/documents", COURSE_ID)
 				.header("X-User-Id", OWNER_ID))
 				.andExpect(status().isOk())
