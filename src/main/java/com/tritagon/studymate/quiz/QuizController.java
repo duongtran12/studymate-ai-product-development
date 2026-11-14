@@ -18,7 +18,11 @@ import com.tritagon.studymate.web.CurrentUserId;
 @RequestMapping("/api/v1")
 public class QuizController {
 	private final QuizService quizService;
-	public QuizController(QuizService quizService) { this.quizService = quizService; }
+	private final AiQuizGenerationService generationService;
+	public QuizController(QuizService quizService, AiQuizGenerationService generationService) {
+		this.quizService = quizService;
+		this.generationService = generationService;
+	}
 
 	@GetMapping("/courses/{courseId}/quizzes")
 	public List<QuizResponse> list(@CurrentUserId Long userId, @PathVariable Long courseId) { return quizService.list(userId, courseId); }
@@ -27,6 +31,13 @@ public class QuizController {
 	public ResponseEntity<QuizResponse> create(@CurrentUserId Long userId, @PathVariable Long courseId,
 			@RequestBody QuizCreateRequest request) {
 		QuizResponse quiz = quizService.create(userId, courseId, request);
+		return ResponseEntity.created(URI.create("/api/v1/quizzes/" + quiz.id())).body(quiz);
+	}
+
+	@PostMapping("/courses/{courseId}/quizzes/generate")
+	public ResponseEntity<QuizResponse> generate(@CurrentUserId Long userId, @PathVariable Long courseId,
+			@RequestBody QuizGenerateRequest request) {
+		QuizResponse quiz = quizService.create(userId, courseId, generationService.generate(userId, courseId, request));
 		return ResponseEntity.created(URI.create("/api/v1/quizzes/" + quiz.id())).body(quiz);
 	}
 

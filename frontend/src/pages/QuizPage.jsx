@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getUserErrorMessage } from "../api/apiError";
 import { getCourses } from "../api/courseApi";
 import { getDocuments } from "../api/documentLibraryApi";
-import { createQuiz, deleteQuiz, getCourseQuizzes, getQuizAttempts, submitQuizAttempt } from "../api/quizApi";
+import { createQuiz, deleteQuiz, generateQuiz, getCourseQuizzes, getQuizAttempts, submitQuizAttempt } from "../api/quizApi";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
@@ -21,6 +21,8 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 	const [deletingQuiz, setDeletingQuiz] = useState(false);
+	const [generating, setGenerating] = useState(false);
+	const [generationError, setGenerationError] = useState("");
   const [showCreator, setShowCreator] = useState(false);
   const [draft, setDraft] = useState({ title: "", questionText: "", options: "", answerText: "", explanation: "" });
   const [creatorError, setCreatorError] = useState("");
@@ -99,6 +101,15 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     } catch (requestFailure) { setCreatorError(getUserErrorMessage(requestFailure)); }
     finally { setSubmitting(false); }
   }
+  async function createAiQuiz() {
+    if (sourceDocumentIds.length === 0) { setGenerationError("Chọn ít nhất một tài liệu sẵn sàng trước."); return; }
+    setGenerating(true); setGenerationError("");
+    try {
+      const created = await generateQuiz(courseId, { documentIds: sourceDocumentIds, questionCount: 3 });
+      setQuizzes((current) => [created, ...current]); setQuizId(String(created.id)); setSourceDocumentIds([]);
+    } catch (requestFailure) { setGenerationError(getUserErrorMessage(requestFailure)); }
+    finally { setGenerating(false); }
+  }
   async function submit() {
     if (questions.some((question) => !answers[question.id])) return;
     setSubmitError("");
@@ -131,7 +142,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   if (busy) return <section className="page-section"><LoadingState message="Đang chuẩn bị quiz…" /></section>;
   if (requestError) return <section className="page-section"><ErrorState message={requestError} onRetry={error || coursesError ? (onRetry ?? retryCourses) : retryQuizzes} /></section>;
   if (!suppliedQuiz && courses.length === 0) return <section className="page-section"><EmptyState title="Chưa có môn học" description="Hãy tạo một môn học trước khi làm quiz." /></section>;
-  if (!activeQuiz || questions.length === 0) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1>{!suppliedQuiz && <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); setSourceDocumentIds([]); resetAttempt(); }} />}<EmptyState title="Chưa có quiz" description="Tạo bộ câu hỏi cho môn học này để bắt đầu ôn tập." />{!suppliedQuiz && <><button className="primary-button" type="button" onClick={() => { setShowCreator((current) => !current); setCreatorError(""); }}>{showCreator ? "Đóng biểu mẫu" : "Tạo quiz thủ công"}</button>{showCreator && <QuizCreator draft={draft} disabled={submitting} error={creatorError} documents={documents} documentsLoading={loadingDocuments} selectedDocumentIds={sourceDocumentIds} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} onChange={updateDraft} onSubmit={createManualQuiz} />}</>}</section>;
+  if (!activeQuiz || questions.length === 0) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1>{!suppliedQuiz && <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); setSourceDocumentIds([]); resetAttempt(); }} />}<EmptyState title="Chưa có quiz" description="Tạo bộ câu hỏi cho môn học này để bắt đầu ôn tập." />{!suppliedQuiz && <><AiQuizGenerator documents={documents} documentsLoading={loadingDocuments} error={generationError} generating={generating} selectedDocumentIds={sourceDocumentIds} onGenerate={createAiQuiz} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} /><button className="primary-button" type="button" onClick={() => { setShowCreator((current) => !current); setCreatorError(""); }}>{showCreator ? "Đóng biểu mẫu" : "Tạo quiz thủ công"}</button>{showCreator && <QuizCreator draft={draft} disabled={submitting} error={creatorError} documents={documents} documentsLoading={loadingDocuments} selectedDocumentIds={sourceDocumentIds} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} onChange={updateDraft} onSubmit={createManualQuiz} />}</>}</section>;
 
   const complete = questions.every((question) => answers[question.id]);
   return <section className="page-section" aria-labelledby="quiz-title">
@@ -173,6 +184,11 @@ function QuizCreator({ draft, disabled, error, documents, documentsLoading, sele
     <fieldset className="quiz-source-picker"><legend>Tài liệu nguồn (không bắt buộc)</legend>{documentsLoading && <span>Đang tải tài liệu…</span>}{!documentsLoading && documents.length === 0 && <span>Môn học này chưa có tài liệu.</span>}{documents.map((document) => <label className={document.processingStatus !== "READY" ? "source-document-unavailable" : ""} key={document.id}><input type="checkbox" checked={selectedDocumentIds.includes(document.id)} disabled={document.processingStatus !== "READY"} onChange={() => onDocumentToggle(document.id)} />{document.fileName}{document.processingStatus !== "READY" && <small> · Chưa sẵn sàng</small>}</label>)}</fieldset>
     <button className="primary-button" disabled={disabled} type="submit">{disabled ? "Đang tạo…" : "Tạo quiz"}</button>
   </form>;
+}
+
+function AiQuizGenerator({ documents, documentsLoading, selectedDocumentIds, onDocumentToggle, onGenerate, generating, error }) {
+  const readyDocuments = documents.filter((document) => document.processingStatus === "READY");
+  return <section className="quiz-context"><strong>Tạo quiz bằng AI</strong><p>Chọn tài liệu đã sẵn sàng. AI tạo 3 câu hỏi có đáp án từ nội dung trích xuất.</p>{error && <p className="form-error">{error}</p>}{documentsLoading ? <span>Đang tải tài liệu…</span> : readyDocuments.length === 0 ? <span>Chưa có tài liệu sẵn sàng.</span> : <fieldset className="quiz-source-picker"><legend>Nguồn cho AI</legend>{readyDocuments.map((document) => <label key={document.id}><input type="checkbox" checked={selectedDocumentIds.includes(document.id)} onChange={() => onDocumentToggle(document.id)} />{document.fileName}</label>)}</fieldset>}<button className="primary-button" type="button" disabled={generating || selectedDocumentIds.length === 0} onClick={onGenerate}>{generating ? "AI đang tạo…" : "Tạo quiz từ tài liệu"}</button></section>;
 }
 
 function QuizHistory({ attempts, loading, error, onRetry }) {

@@ -24,6 +24,14 @@ export function createQuiz(courseId, quiz) {
   });
 }
 
+export function generateQuiz(courseId, payload) {
+  return apiRequest(`/api/v1/courses/${courseId}/quizzes/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export function submitQuizAttempt(quizId, answers) {
   return apiRequest(`/api/v1/quizzes/${quizId}/attempts`, {
     method: "POST",

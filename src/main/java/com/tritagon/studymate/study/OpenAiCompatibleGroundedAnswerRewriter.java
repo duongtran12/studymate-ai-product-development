@@ -32,17 +32,22 @@ public class OpenAiCompatibleGroundedAnswerRewriter {
 	}
 
 	public Optional<String> rewrite(String question, List<CitationResponse> citations) {
-		if (apiKey.isBlank() || model.isBlank()) return Optional.empty();
 		String context = citations.stream()
 				.map(citation -> "[" + citation.documentName() + " — " + citation.locator() + "]\n" + citation.excerpt())
 				.reduce((left, right) -> left + "\n\n" + right)
 				.orElse("");
+		return complete("Answer in Vietnamese using only the supplied excerpts. If the excerpts do not answer the question, say that the context is insufficient. Do not invent citations.",
+				"Câu hỏi: " + question + "\n\nNgữ cảnh:\n" + context);
+	}
+
+	public Optional<String> complete(String systemPrompt, String userPrompt) {
+		if (apiKey.isBlank() || model.isBlank()) return Optional.empty();
 		Map<String, Object> request = Map.of(
 				"model", model,
 				"temperature", 0.2,
 				"messages", List.of(
-						Map.of("role", "system", "content", "Answer in Vietnamese using only the supplied excerpts. If the excerpts do not answer the question, say that the context is insufficient. Do not invent citations."),
-						Map.of("role", "user", "content", "Câu hỏi: " + question + "\n\nNgữ cảnh:\n" + context)));
+						Map.of("role", "system", "content", systemPrompt),
+						Map.of("role", "user", "content", userPrompt)));
 		try {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> response = restClient.post().uri("/chat/completions")
