@@ -208,13 +208,13 @@ export default function StudySessionPage() {
           <legend>Tài liệu làm nguồn</legend>
           {documents.length === 0 && <p className="context-help">Môn học này chưa có tài liệu.</p>}
           {documents.map((document) => (
-            <label className="document-choice" key={document.id}>
-              <input checked={selectedDocumentIds.includes(String(document.id))} onChange={() => toggleDocument(document.id)} type="checkbox" />
-              <span>{document.fileName}<small>{document.processingStatus}</small></span>
+            <label className={`document-choice ${document.processingStatus !== "READY" ? "document-choice-unavailable" : ""}`} key={document.id}>
+              <input checked={selectedDocumentIds.includes(String(document.id))} disabled={document.processingStatus !== "READY"} onChange={() => toggleDocument(document.id)} type="checkbox" />
+              <span>{document.fileName}<small>{document.processingStatus === "READY" ? "Sẵn sàng làm nguồn" : `Chưa thể dùng · ${document.processingStatus}`}</small></span>
             </label>
           ))}
         </fieldset>
-        <p className="context-help">Phạm vi tài liệu được cố định sau khi phiên học được tạo. Nếu không chọn nguồn, StudyMate sẽ báo chưa đủ căn cứ.</p>
+        <p className="context-help">Chỉ tài liệu đã xử lý xong mới dùng được làm nguồn. Phạm vi được cố định sau khi tạo phiên học.</p>
       </aside>
 
       <div className="chat-panel">
