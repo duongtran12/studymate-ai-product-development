@@ -136,6 +136,17 @@ describe("Dashboard course UI", () => {
     expect(screen.getByText(`Tạo Quiz cho ${course.name}`)).toBeTruthy();
   });
 
+  it("shows a time-ordered learning activity timeline", async () => {
+    getDocuments.mockResolvedValue([{ id: 5, fileName: "lecture.pdf", createdAt: "2026-11-20T09:00:00Z" }]);
+    getCourseQuizzes.mockResolvedValue([{ id: 11, courseId: 7, title: "Kiểm thử đơn vị", createdAt: "2026-11-20T10:00:00Z" }]);
+    getQuizAttempts.mockResolvedValue([{ id: 1, score: 80, submittedAt: "2026-11-20T11:00:00Z" }]);
+    renderDashboard();
+
+    expect(await screen.findByRole("heading", { name: "Lịch sử hoạt động" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Đã hoàn thành Kiểm thử đơn vị · 80%" }).getAttribute("href")).toBe("/quizzes?course=7&quiz=11");
+    expect(screen.getByText("Đã tải tài liệu lecture.pdf")).toBeTruthy();
+  });
+
   it("saves a learning goal for the selected course", async () => {
     saveCourseLearningGoal.mockResolvedValue({ courseId: 7, configured: true, targetAttemptCount: 4, targetAverageScore: 85 });
     renderDashboard();

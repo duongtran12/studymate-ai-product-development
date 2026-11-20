@@ -62,6 +62,25 @@ async function getStudyActivity(signal, courses) {
       action: "Tạo Quiz", to: `/quizzes?course=${item.course.id}`,
     })),
   ].slice(0, 3);
+  const quizById = new Map(quizzes.map((quiz) => [quiz.id, quiz]));
+  const activityTimeline = [
+    ...courseData.flatMap((item) => item.documents.map((document) => ({
+      id: `document-${document.id}`, type: "Tài liệu", title: `Đã tải tài liệu ${document.fileName}`,
+      courseName: item.course.name, happenedAt: document.createdAt, to: `/documents?course=${item.course.id}`,
+    }))),
+    ...courseData.flatMap((item) => item.quizzes.map((quiz) => ({
+      id: `quiz-${quiz.id}`, type: "Quiz", title: `Đã tạo Quiz ${quiz.title}`,
+      courseName: item.course.name, happenedAt: quiz.createdAt, to: `/quizzes?course=${item.course.id}&quiz=${quiz.id}`,
+    }))),
+    ...attemptsByQuiz.flatMap((entry) => entry.attempts.map((attempt) => {
+      const quiz = quizById.get(entry.quizId);
+      return {
+        id: `attempt-${attempt.id}`, type: "Kết quả", title: `Đã hoàn thành ${quiz?.title ?? "Quiz"} · ${attempt.score}%`,
+        courseName: courseData.find((item) => item.course.id === quiz?.courseId)?.course.name ?? "Môn học",
+        happenedAt: attempt.submittedAt, to: `/quizzes?course=${quiz?.courseId}&quiz=${entry.quizId}`,
+      };
+    })),
+  ].filter((event) => event.happenedAt).sort((left, right) => new Date(right.happenedAt) - new Date(left.happenedAt)).slice(0, 8);
   return {
     readyDocuments: courseData.flatMap((item) => item.documents).filter((document) => document.processingStatus === "READY").length,
     quizCount: quizzes.length,
@@ -70,6 +89,7 @@ async function getStudyActivity(signal, courses) {
     quizPerformance,
     learningGoals,
     suggestions,
+    activityTimeline,
   };
 }
 
@@ -88,7 +108,7 @@ export default function DashboardPage() {
   const requestActivity = useCallback((signal) => getStudyActivity(signal,
     activityCourseId ? courses.filter((course) => String(course.id) === activityCourseId) : courses), [activityCourseId, courses]);
   const { data: activity, loading: loadingActivity, error: activityError, run: loadActivity, cancel: cancelActivity } = useAsyncRequest(requestActivity, {
-    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [], quizPerformance: [], learningGoals: [], suggestions: [] },
+    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [], quizPerformance: [], learningGoals: [], suggestions: [], activityTimeline: [] },
   });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -254,6 +274,8 @@ export default function DashboardPage() {
       </section>
 
       {!loadingActivity && !activityError && activity.suggestions.length > 0 && <section className="learning-suggestions" aria-labelledby="suggestions-title"><div><p className="eyebrow">Nên làm tiếp</p><h2 id="suggestions-title">Gợi ý học tập</h2></div><div className="suggestion-list">{activity.suggestions.map((suggestion) => <article key={suggestion.id}><div><h3>{suggestion.title}</h3><p>{suggestion.description}</p></div><Link className="secondary-action" to={suggestion.to}>{suggestion.action}</Link></article>)}</div></section>}
+
+      {!loadingActivity && !activityError && activity.activityTimeline.length > 0 && <section className="activity-timeline" aria-labelledby="timeline-title"><div><p className="eyebrow">Nhật ký</p><h2 id="timeline-title">Lịch sử hoạt động</h2></div><ol>{activity.activityTimeline.map((event) => <li key={event.id}><span className={`timeline-dot timeline-${event.type === "Kết quả" ? "result" : event.type === "Quiz" ? "quiz" : "document"}`}>{event.type}</span><div><Link to={event.to}>{event.title}</Link><p>{event.courseName} · {new Date(event.happenedAt).toLocaleString("vi-VN")}</p></div></li>)}</ol></section>}
 
       <section className="learning-goals" aria-labelledby="goals-title">
         <div><p className="eyebrow">Kế hoạch</p><h2 id="goals-title">Mục tiêu học tập</h2><p className="page-intro">Thiết lập mục tiêu cho từng môn để theo dõi thói quen làm Quiz và chất lượng ôn tập.</p></div>
