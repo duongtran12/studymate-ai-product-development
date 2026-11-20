@@ -3,6 +3,8 @@ package com.tritagon.studymate.quiz;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -48,7 +50,7 @@ public class AiQuizGenerationService {
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI quiz generation is not configured."));
 		try {
 			List<QuizQuestionWriteRequest> questions = objectMapper.readValue(stripFence(generated), new TypeReference<>() { });
-			if (questions.size() != count) throw badRequest("AI did not return the requested number of questions.");
+			validateGeneratedQuestions(questions, count);
 			return new QuizCreateRequest("Ôn tập tự động", questions, ids);
 		} catch (JacksonException exception) { throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI returned an invalid quiz format."); }
 	}
@@ -59,6 +61,28 @@ public class AiQuizGenerationService {
 		if (!"READY".equals(document.processingStatus())) throw badRequest("Every quiz source document must be ready.");
 		return documentChunkRepository.findTop3ByDocumentIdOrderByChunkIndexAsc(documentId).stream().map(chunk -> chunk.content()).reduce((left, right) -> left + "\n" + right).orElse("");
 	}
+
+	private void validateGeneratedQuestions(List<QuizQuestionWriteRequest> questions, int requestedCount) {
+		if (questions == null || questions.size() != requestedCount) throw invalidAiOutput("AI did not return the requested number of questions.");
+		Set<String> uniqueQuestions = questions.stream().map(question -> question == null ? "" : normalize(question.questionText()))
+				.collect(Collectors.toSet());
+		if (uniqueQuestions.contains("") || uniqueQuestions.size() != questions.size()) {
+			throw invalidAiOutput("AI returned blank or duplicate questions.");
+		}
+		for (QuizQuestionWriteRequest question : questions) {
+			if (question.options() == null || question.options().size() != 4 || normalize(question.answerText()).isBlank()) {
+				throw invalidAiOutput("Every generated question must have four options and an answer.");
+			}
+			Set<String> options = question.options().stream().map(this::normalize).collect(Collectors.toSet());
+			if (options.contains("") || options.size() != 4) throw invalidAiOutput("Generated options must be unique and non-empty.");
+			if (!options.contains(normalize(question.answerText()))) {
+				throw invalidAiOutput("A generated answer must match one of its options.");
+			}
+		}
+	}
+
+	private String normalize(String value) { return value == null ? "" : value.trim().toLowerCase(Locale.ROOT); }
 	private String stripFence(String value) { return value.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "").trim(); }
 	private ResponseStatusException badRequest(String message) { return new ResponseStatusException(HttpStatus.BAD_REQUEST, message); }
+	private ResponseStatusException invalidAiOutput(String message) { return new ResponseStatusException(HttpStatus.BAD_GATEWAY, message); }
 }
