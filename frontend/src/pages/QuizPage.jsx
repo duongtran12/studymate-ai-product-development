@@ -18,6 +18,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   const [searchParams] = useSearchParams();
   const [courseId, setCourseId] = useState(() => searchParams.get("course") ?? "");
   const [quizId, setQuizId] = useState(() => searchParams.get("quiz") ?? "");
+  const [quizSearch, setQuizSearch] = useState("");
   const [answers, setAnswers] = useState({});
   const [attempt, setAttempt] = useState(null);
   const [submitError, setSubmitError] = useState("");
@@ -85,6 +86,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   }, [suppliedQuiz]);
 
   const activeQuiz = suppliedQuiz ?? quizzes.find((item) => String(item.id) === quizId);
+  const filteredQuizzes = quizzes.filter((item) => item.title.toLocaleLowerCase("vi-VN").includes(quizSearch.trim().toLocaleLowerCase("vi-VN")));
   const questions = activeQuiz?.questions ?? [];
   const selectedCourse = courses.find((course) => String(course.id) === courseId);
   const sourceDocuments = documents.filter((document) => activeQuiz?.documentIds?.includes(document.id));
@@ -178,7 +180,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     <p className="page-intro">Chọn đáp án cho từng câu hỏi, sau đó nộp một lần để hệ thống chấm điểm.</p>
     {!suppliedQuiz && <>
       <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); resetAttempt(); }} />
-      {quizzes.length > 1 && <label className="course-filter"><span>Chọn bộ quiz</span><select value={quizId} onChange={(event) => { setQuizId(event.target.value); resetAttempt(); }}>{quizzes.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
+      {quizzes.length > 1 && <><label className="quiz-search"><span>Tìm bộ Quiz</span><input value={quizSearch} onChange={(event) => setQuizSearch(event.target.value)} placeholder="Nhập tiêu đề Quiz" /></label>{filteredQuizzes.length === 0 ? <p className="activity-message">Không tìm thấy bộ Quiz phù hợp.</p> : <label className="course-filter"><span>Chọn bộ quiz</span><select value={quizId} onChange={(event) => { setQuizId(event.target.value); resetAttempt(); }}>{filteredQuizzes.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}</>}
     </>}
     <div className="quiz-context"><strong>{suppliedQuiz ? "Nguồn đã chọn:" : "Bộ câu hỏi:"}</strong> {activeQuiz.source ?? `${questions.length} câu hỏi`}{!suppliedQuiz && activeQuiz.documentIds?.length > 0 && ` · ${activeQuiz.documentIds.length} tài liệu nguồn`}</div>
     {!suppliedQuiz && sourceDocuments.length > 0 && <ul className="quiz-source-list" aria-label="Tài liệu nguồn của Quiz">{sourceDocuments.map((document) => <li key={document.id}>⌁ {document.fileName}</li>)}</ul>}

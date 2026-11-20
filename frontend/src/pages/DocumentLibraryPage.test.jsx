@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getCourses, getDocuments } from "../api/documentLibraryApi";
@@ -55,5 +55,21 @@ describe("Document Library UI", () => {
     );
 
     expect(await screen.findByText("Môn học chưa có tài liệu")).toBeTruthy();
+  });
+
+  it("filters documents by name and processing status", async () => {
+    getCourses.mockResolvedValue([{ id: 7, name: "Software Testing" }]);
+    getDocuments.mockResolvedValue([
+      { id: 11, courseId: 7, fileName: "chapter-08.pdf", fileSizeBytes: 2048, processingStatus: "READY", createdAt: "2026-11-01T08:00:00Z" },
+      { id: 12, courseId: 7, fileName: "notes.docx", fileSizeBytes: 2048, processingStatus: "FAILED", createdAt: "2026-11-02T08:00:00Z" },
+    ]);
+    render(<MemoryRouter initialEntries={["/documents?course=7"]}><DocumentLibraryPage /></MemoryRouter>);
+
+    await screen.findByRole("heading", { name: "chapter-08.pdf" });
+    fireEvent.change(screen.getByLabelText("Tìm tài liệu"), { target: { value: "notes" } });
+    expect(screen.queryByRole("heading", { name: "chapter-08.pdf" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "notes.docx" })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Trạng thái"), { target: { value: "ready" } });
+    expect(screen.getByText("Không tìm thấy tài liệu")).toBeTruthy();
   });
 });

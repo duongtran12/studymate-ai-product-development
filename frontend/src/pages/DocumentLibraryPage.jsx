@@ -55,6 +55,8 @@ export default function DocumentLibraryPage() {
   const [previews, setPreviews] = useState({});
   const [deleteError, setDeleteError] = useState("");
   const [notice, setNotice] = useState("");
+  const [documentSearch, setDocumentSearch] = useState("");
+  const [documentStatus, setDocumentStatus] = useState("all");
 
   useEffect(() => {
     loadCourses();
@@ -147,6 +149,12 @@ export default function DocumentLibraryPage() {
   const selectedCourse = courses.find((course) => String(course.id) === selectedCourseId);
   const busy = loadingCourses || loadingDocuments;
   const error = deleteError || documentsError || coursesError;
+  const normalizedSearch = documentSearch.trim().toLocaleLowerCase("vi-VN");
+  const filteredDocuments = documents.filter((document) => {
+    const matchesSearch = !normalizedSearch || document.fileName.toLocaleLowerCase("vi-VN").includes(normalizedSearch);
+    const matchesStatus = documentStatus === "all" || document.processingStatus.toLowerCase() === documentStatus;
+    return matchesSearch && matchesStatus;
+  });
   const retry = coursesError ? retryCourses : documentsError ? retryDocuments : () => {
     setDeleteError("");
     loadDocuments(selectedCourseId);
@@ -196,8 +204,9 @@ export default function DocumentLibraryPage() {
       ) : documents.length === 0 ? (
         <EmptyState title="Môn học chưa có tài liệu" description="Tải lên tệp PDF hoặc DOCX đầu tiên bằng khu vực phía trên." />
       ) : (
-        <div className="document-list">
-          {documents.map((document) => {
+        <><div className="library-search" role="search"><label><span>Tìm tài liệu</span><input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Tên tệp PDF hoặc DOCX" /></label><label><span>Trạng thái</span><select value={documentStatus} onChange={(event) => setDocumentStatus(event.target.value)}><option value="all">Tất cả trạng thái</option><option value="ready">Sẵn sàng</option><option value="uploaded">Đã tải lên</option><option value="processing">Đang xử lý</option><option value="failed">Thất bại</option></select></label></div>
+        {filteredDocuments.length === 0 ? <EmptyState title="Không tìm thấy tài liệu" description="Hãy đổi từ khóa hoặc bộ lọc trạng thái để xem lại." /> : <div className="document-list">
+          {filteredDocuments.map((document) => {
             const status = document.processingStatus.toLowerCase();
             const preview = previews[document.id];
             return <article className="document-row" key={document.id}>
@@ -211,7 +220,7 @@ export default function DocumentLibraryPage() {
               {preview && <div className="document-preview"><strong>StudyMate đã trích xuất {preview.chunkCount} đoạn</strong>{preview.excerpts.length > 0 ? preview.excerpts.map((excerpt, index) => <p key={index}>{excerpt}</p>) : <p>Chưa có nội dung để xem trước.</p>}</div>}
             </article>;
           })}
-        </div>
+        </div>}</>
       )}
     </section>
   );
