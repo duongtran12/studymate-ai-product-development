@@ -2,6 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCourse, deleteCourse, getCourses, updateCourse } from "../api/courseApi";
+import { getDocuments } from "../api/documentLibraryApi";
+import { getCourseQuizzes, getQuizAttempts } from "../api/quizApi";
+import { getStudySessions } from "../api/studySessionApi";
 import DashboardPage from "./DashboardPage";
 
 vi.mock("../api/courseApi", () => ({
@@ -10,6 +13,9 @@ vi.mock("../api/courseApi", () => ({
   getCourses: vi.fn(),
   updateCourse: vi.fn(),
 }));
+vi.mock("../api/documentLibraryApi", () => ({ getDocuments: vi.fn() }));
+vi.mock("../api/quizApi", () => ({ getCourseQuizzes: vi.fn(), getQuizAttempts: vi.fn() }));
+vi.mock("../api/studySessionApi", () => ({ getStudySessions: vi.fn() }));
 
 const course = {
   id: 7,
@@ -29,6 +35,10 @@ function renderDashboard() {
 beforeEach(() => {
   vi.resetAllMocks();
   getCourses.mockResolvedValue([course]);
+  getDocuments.mockResolvedValue([]);
+  getCourseQuizzes.mockResolvedValue([]);
+  getStudySessions.mockResolvedValue([]);
+  getQuizAttempts.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -100,5 +110,17 @@ describe("Dashboard course UI", () => {
     await waitFor(() => expect(deleteCourse).toHaveBeenCalledWith(course.id));
     expect(screen.queryByRole("heading", { name: course.name })).toBeNull();
     expect(screen.getByRole("status").textContent).toContain("Đã xóa môn học");
+  });
+
+  it("shows per-quiz performance and flags a weak quiz for review", async () => {
+    getCourseQuizzes.mockResolvedValue([{ id: 11, title: "Kiểm thử đơn vị" }, { id: 12, title: "Tích hợp API" }]);
+    getQuizAttempts.mockImplementation((quizId) => Promise.resolve(quizId === 11
+      ? [{ id: 1, score: 50, submittedAt: "2026-11-20T10:00:00Z" }, { id: 2, score: 60, submittedAt: "2026-11-20T11:00:00Z" }]
+      : [{ id: 3, score: 90, submittedAt: "2026-11-20T12:00:00Z" }]));
+    renderDashboard();
+
+    expect(await screen.findByText("Kiểm thử đơn vị")).toBeTruthy();
+    expect(screen.getByText("Cần ôn · TB 55%")).toBeTruthy();
+    expect(screen.getByText("Ổn định · TB 90%")).toBeTruthy();
   });
 });

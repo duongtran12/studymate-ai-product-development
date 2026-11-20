@@ -14,15 +14,33 @@ async function getStudyActivity(signal, courses) {
     const [documents, quizzes, sessions] = await Promise.all([
       getDocuments(course.id, signal), getCourseQuizzes(course.id, signal), getStudySessions(course.id, signal),
     ]);
-    return { documents, quizzes, sessions };
+    return { course, documents, quizzes, sessions };
   }));
   const quizzes = courseData.flatMap((item) => item.quizzes);
-  const attempts = (await Promise.all(quizzes.map((quiz) => getQuizAttempts(quiz.id, signal)))).flat();
+  const attemptsByQuiz = await Promise.all(quizzes.map(async (quiz) => ({
+    quizId: quiz.id,
+    attempts: await getQuizAttempts(quiz.id, signal),
+  })));
+  const attempts = attemptsByQuiz.flatMap((item) => item.attempts);
+  const quizPerformance = quizzes.map((quiz) => {
+    const attemptsForQuiz = attemptsByQuiz.find((item) => item.quizId === quiz.id)?.attempts ?? [];
+    const scores = attemptsForQuiz.map((attempt) => Number(attempt.score));
+    const averageScore = scores.length ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length) : null;
+    return {
+      id: quiz.id,
+      title: quiz.title,
+      attemptCount: attemptsForQuiz.length,
+      averageScore,
+      bestScore: scores.length ? Math.max(...scores) : null,
+      needsReview: averageScore !== null && averageScore < 70,
+    };
+  }).filter((quiz) => quiz.attemptCount > 0).sort((left, right) => left.averageScore - right.averageScore);
   return {
     readyDocuments: courseData.flatMap((item) => item.documents).filter((document) => document.processingStatus === "READY").length,
     quizCount: quizzes.length,
     sessionCount: courseData.flatMap((item) => item.sessions).length,
     recentAttempts: attempts.sort((left, right) => new Date(right.submittedAt) - new Date(left.submittedAt)).slice(0, 3),
+    quizPerformance,
   };
 }
 
@@ -41,7 +59,7 @@ export default function DashboardPage() {
   const requestActivity = useCallback((signal) => getStudyActivity(signal,
     activityCourseId ? courses.filter((course) => String(course.id) === activityCourseId) : courses), [activityCourseId, courses]);
   const { data: activity, loading: loadingActivity, error: activityError, run: loadActivity, cancel: cancelActivity } = useAsyncRequest(requestActivity, {
-    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [] },
+    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [], quizPerformance: [] },
   });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -174,7 +192,8 @@ export default function DashboardPage() {
           <article><strong>{activity.quizCount}</strong><span>Quiz đã tạo</span></article>
           <article><strong>{activity.sessionCount}</strong><span>Phiên học đã lưu</span></article>
         </div>
-        <div className="recent-attempts"><h3>Kết quả Quiz gần nhất</h3>{activity.recentAttempts.length === 0 ? <p>Chưa có lần làm Quiz nào.</p> : <ol>{activity.recentAttempts.map((attempt) => <li key={attempt.id}><strong>{attempt.score}%</strong><span>{new Date(attempt.submittedAt).toLocaleString("vi-VN")}</span></li>)}</ol>}</div></>}
+        <div className="recent-attempts"><h3>Kết quả Quiz gần nhất</h3>{activity.recentAttempts.length === 0 ? <p>Chưa có lần làm Quiz nào.</p> : <ol>{activity.recentAttempts.map((attempt) => <li key={attempt.id}><strong>{attempt.score}%</strong><span>{new Date(attempt.submittedAt).toLocaleString("vi-VN")}</span></li>)}</ol>}</div>
+        <div className="quiz-performance"><div><h3>Tiến độ theo bộ Quiz</h3><p>Ưu tiên ôn lại những bộ có điểm trung bình dưới 70%.</p></div>{activity.quizPerformance.length === 0 ? <p className="activity-message">Hoàn thành một Quiz để xem điểm trung bình và điểm cao nhất.</p> : <ul>{activity.quizPerformance.map((quiz) => <li key={quiz.id}><div><strong>{quiz.title}</strong><span>{quiz.attemptCount} lần làm · Cao nhất {quiz.bestScore}%</span></div><b className={quiz.needsReview ? "review-needed" : "review-ready"}>{quiz.needsReview ? `Cần ôn · TB ${quiz.averageScore}%` : `Ổn định · TB ${quiz.averageScore}%`}</b></li>)}</ul>}</div></>}
       </section>
 
       <section className="course-area" aria-labelledby="courses-title">
