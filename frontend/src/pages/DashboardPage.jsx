@@ -42,6 +42,26 @@ async function getStudyActivity(signal, courses) {
     const averageScore = scores.length ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length) : 0;
     return { ...item.goal, courseName: item.course.name, attemptCount: courseAttempts.length, averageScore };
   });
+  const suggestions = [
+    ...quizPerformance.filter((quiz) => quiz.needsReview).map((quiz) => ({
+      id: `review-${quiz.id}`,
+      title: `Ôn lại ${quiz.title}`,
+      description: `Điểm trung bình hiện tại là ${quiz.averageScore}%. Làm lại Quiz để củng cố phần còn yếu.`,
+      action: "Mở Quiz", to: `/quizzes?course=${quiz.courseId}&quiz=${quiz.id}`,
+    })),
+    ...courseData.filter((item) => item.documents.length === 0).map((item) => ({
+      id: `document-${item.course.id}`,
+      title: `Thêm tài liệu cho ${item.course.name}`,
+      description: "Tải PDF hoặc DOCX để có nguồn học và tạo câu hỏi chính xác hơn.",
+      action: "Tải tài liệu", to: `/documents?course=${item.course.id}`,
+    })),
+    ...courseData.filter((item) => item.quizzes.length === 0).map((item) => ({
+      id: `quiz-${item.course.id}`,
+      title: `Tạo Quiz cho ${item.course.name}`,
+      description: "Chưa có bài kiểm tra nào cho môn này. Hãy tạo Quiz để bắt đầu đo tiến độ.",
+      action: "Tạo Quiz", to: `/quizzes?course=${item.course.id}`,
+    })),
+  ].slice(0, 3);
   return {
     readyDocuments: courseData.flatMap((item) => item.documents).filter((document) => document.processingStatus === "READY").length,
     quizCount: quizzes.length,
@@ -49,6 +69,7 @@ async function getStudyActivity(signal, courses) {
     recentAttempts: attempts.sort((left, right) => new Date(right.submittedAt) - new Date(left.submittedAt)).slice(0, 3),
     quizPerformance,
     learningGoals,
+    suggestions,
   };
 }
 
@@ -67,7 +88,7 @@ export default function DashboardPage() {
   const requestActivity = useCallback((signal) => getStudyActivity(signal,
     activityCourseId ? courses.filter((course) => String(course.id) === activityCourseId) : courses), [activityCourseId, courses]);
   const { data: activity, loading: loadingActivity, error: activityError, run: loadActivity, cancel: cancelActivity } = useAsyncRequest(requestActivity, {
-    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [], quizPerformance: [], learningGoals: [] },
+    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [], quizPerformance: [], learningGoals: [], suggestions: [] },
   });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -231,6 +252,8 @@ export default function DashboardPage() {
         <div className="recent-attempts"><h3>Kết quả Quiz gần nhất</h3>{activity.recentAttempts.length === 0 ? <p>Chưa có lần làm Quiz nào.</p> : <ol>{activity.recentAttempts.map((attempt) => <li key={attempt.id}><strong>{attempt.score}%</strong><span>{new Date(attempt.submittedAt).toLocaleString("vi-VN")}</span></li>)}</ol>}</div>
         <div className="quiz-performance"><div><h3>Tiến độ theo bộ Quiz</h3><p>Ưu tiên ôn lại những bộ có điểm trung bình dưới 70%.</p></div>{activity.quizPerformance.length === 0 ? <p className="activity-message">Hoàn thành một Quiz để xem điểm trung bình và điểm cao nhất.</p> : <ul>{activity.quizPerformance.map((quiz) => <li key={quiz.id}><div><strong>{quiz.title}</strong><span>{quiz.attemptCount} lần làm · Cao nhất {quiz.bestScore}%</span></div>{quiz.needsReview ? <Link className="review-needed review-link" to={`/quizzes?course=${quiz.courseId}&quiz=${quiz.id}`}>Ôn lại · TB {quiz.averageScore}%</Link> : <b className="review-ready">Ổn định · TB {quiz.averageScore}%</b>}</li>)}</ul>}</div></>}
       </section>
+
+      {!loadingActivity && !activityError && activity.suggestions.length > 0 && <section className="learning-suggestions" aria-labelledby="suggestions-title"><div><p className="eyebrow">Nên làm tiếp</p><h2 id="suggestions-title">Gợi ý học tập</h2></div><div className="suggestion-list">{activity.suggestions.map((suggestion) => <article key={suggestion.id}><div><h3>{suggestion.title}</h3><p>{suggestion.description}</p></div><Link className="secondary-action" to={suggestion.to}>{suggestion.action}</Link></article>)}</div></section>}
 
       <section className="learning-goals" aria-labelledby="goals-title">
         <div><p className="eyebrow">Kế hoạch</p><h2 id="goals-title">Mục tiêu học tập</h2><p className="page-intro">Thiết lập mục tiêu cho từng môn để theo dõi thói quen làm Quiz và chất lượng ôn tập.</p></div>

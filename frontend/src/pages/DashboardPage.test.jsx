@@ -125,6 +125,15 @@ describe("Dashboard course UI", () => {
     expect(await screen.findByText("Kiểm thử đơn vị")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Ôn lại · TB 55%" }).getAttribute("href")).toBe("/quizzes?course=7&quiz=11");
     expect(screen.getByText("Ổn định · TB 90%")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Mở Quiz" }).getAttribute("href")).toBe("/quizzes?course=7&quiz=11");
+  });
+
+  it("suggests adding documents and a quiz when a course is empty", async () => {
+    renderDashboard();
+
+    expect(await screen.findByText(`Thêm tài liệu cho ${course.name}`)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Tải tài liệu" }).getAttribute("href")).toBe("/documents?course=7");
+    expect(screen.getByText(`Tạo Quiz cho ${course.name}`)).toBeTruthy();
   });
 
   it("saves a learning goal for the selected course", async () => {
