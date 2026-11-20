@@ -67,6 +67,8 @@ class QuizApiIntegrationTests {
 				OTHER_COURSE_ID, OTHER_USER_ID, "Private Course", "PRI302");
 		jdbc.update("INSERT INTO documents (id, course_id, file_name, storage_path, content_type, file_size_bytes, processing_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
 				DOCUMENT_ID, COURSE_ID, "testing-notes.pdf", "testing-notes.pdf", "application/pdf", 1024, "READY");
+		jdbc.update("INSERT INTO document_chunks (document_id, chunk_index, content) VALUES (?, ?, ?)",
+				DOCUMENT_ID, 0, "Unit testing checks an isolated part of an application.");
 		jdbc.update("INSERT INTO documents (id, course_id, file_name, storage_path, content_type, file_size_bytes, processing_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
 				OTHER_DOCUMENT_ID, OTHER_COURSE_ID, "private-notes.pdf", "private-notes.pdf", "application/pdf", 1024, "READY");
 	}
@@ -154,6 +156,16 @@ class QuizApiIntegrationTests {
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quizzes", Integer.class)).isZero();
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempts", Integer.class)).isZero();
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quiz_attempt_answers", Integer.class)).isZero();
+	}
+
+	@Test
+	void generationDoesNotPersistQuizWhenAiIsNotConfigured() throws Exception {
+		mockMvc.perform(post("/api/v1/courses/{courseId}/quizzes/generate", COURSE_ID)
+				.header("X-User-Id", OWNER_ID).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"documentIds\":[501],\"questionCount\":3,\"difficulty\":\"MEDIUM\"}"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.code").value("REQUEST_REJECTED"));
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM quizzes", Integer.class)).isZero();
 	}
 
 	private org.springframework.test.web.servlet.ResultActions createQuiz(long courseId, long userId) throws Exception {

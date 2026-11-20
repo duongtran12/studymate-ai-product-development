@@ -35,10 +35,9 @@ public class QuizController {
 	}
 
 	@PostMapping("/courses/{courseId}/quizzes/generate")
-	public ResponseEntity<QuizResponse> generate(@CurrentUserId Long userId, @PathVariable Long courseId,
+	public QuizCreateRequest generate(@CurrentUserId Long userId, @PathVariable Long courseId,
 			@RequestBody QuizGenerateRequest request) {
-		QuizResponse quiz = quizService.create(userId, courseId, generationService.generate(userId, courseId, request));
-		return ResponseEntity.created(URI.create("/api/v1/quizzes/" + quiz.id())).body(quiz);
+		return generationService.generate(userId, courseId, request);
 	}
 
 	@GetMapping("/quizzes/{quizId}")

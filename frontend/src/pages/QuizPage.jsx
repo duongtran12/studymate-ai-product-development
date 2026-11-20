@@ -24,6 +24,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
 	const [generating, setGenerating] = useState(false);
 	const [generationError, setGenerationError] = useState("");
 	const [generationOptions, setGenerationOptions] = useState({ questionCount: 3, difficulty: "MEDIUM" });
+	const [generatedDraft, setGeneratedDraft] = useState(null);
 	const [aiStatus, setAiStatus] = useState(null);
   const [showCreator, setShowCreator] = useState(false);
   const [draft, setDraft] = useState({ title: "", questionText: "", options: "", answerText: "", explanation: "" });
@@ -114,10 +115,25 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     if (sourceDocumentIds.length === 0) { setGenerationError("Chọn ít nhất một tài liệu sẵn sàng trước."); return; }
     setGenerating(true); setGenerationError("");
     try {
-      const created = await generateQuiz(courseId, { documentIds: sourceDocumentIds, ...generationOptions });
-      setQuizzes((current) => [created, ...current]); setQuizId(String(created.id)); setSourceDocumentIds([]);
+      const draft = await generateQuiz(courseId, { documentIds: sourceDocumentIds, ...generationOptions });
+      setGeneratedDraft(draft);
     } catch (requestFailure) { setGenerationError(getUserErrorMessage(requestFailure)); }
     finally { setGenerating(false); }
+  }
+  async function saveGeneratedDraft() {
+    if (!generatedDraft || submitting) return;
+    setSubmitting(true); setGenerationError("");
+    try {
+      const created = await createQuiz(courseId, generatedDraft);
+      setQuizzes((current) => [created, ...current]); setQuizId(String(created.id)); setGeneratedDraft(null); setSourceDocumentIds([]);
+    } catch (requestFailure) { setGenerationError(getUserErrorMessage(requestFailure)); }
+    finally { setSubmitting(false); }
+  }
+  function updateGeneratedQuestion(index, field, value) {
+    setGeneratedDraft((current) => ({ ...current, questions: current.questions.map((question, questionIndex) => questionIndex === index ? { ...question, [field]: value } : question) }));
+  }
+  function updateGeneratedOption(questionIndex, optionIndex, value) {
+    setGeneratedDraft((current) => ({ ...current, questions: current.questions.map((question, index) => index === questionIndex ? { ...question, options: question.options.map((option, itemIndex) => itemIndex === optionIndex ? value : option) } : question) }));
   }
   async function submit() {
     if (questions.some((question) => !answers[question.id])) return;
@@ -151,7 +167,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
   if (busy) return <section className="page-section"><LoadingState message="Đang chuẩn bị quiz…" /></section>;
   if (requestError) return <section className="page-section"><ErrorState message={requestError} onRetry={error || coursesError ? (onRetry ?? retryCourses) : retryQuizzes} /></section>;
   if (!suppliedQuiz && courses.length === 0) return <section className="page-section"><EmptyState title="Chưa có môn học" description="Hãy tạo một môn học trước khi làm quiz." /></section>;
-  if (!activeQuiz || questions.length === 0) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1>{!suppliedQuiz && <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); setSourceDocumentIds([]); resetAttempt(); }} />}<EmptyState title="Chưa có quiz" description="Tạo bộ câu hỏi cho môn học này để bắt đầu ôn tập." />{!suppliedQuiz && <><AiQuizGenerator aiStatus={aiStatus} documents={documents} documentsLoading={loadingDocuments} error={generationError} generating={generating} options={generationOptions} selectedDocumentIds={sourceDocumentIds} onGenerate={createAiQuiz} onOptionsChange={(field, value) => setGenerationOptions((current) => ({ ...current, [field]: field === "questionCount" ? Number(value) : value }))} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} /><button className="primary-button" type="button" onClick={() => { setShowCreator((current) => !current); setCreatorError(""); }}>{showCreator ? "Đóng biểu mẫu" : "Tạo quiz thủ công"}</button>{showCreator && <QuizCreator draft={draft} disabled={submitting} error={creatorError} documents={documents} documentsLoading={loadingDocuments} selectedDocumentIds={sourceDocumentIds} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} onChange={updateDraft} onSubmit={createManualQuiz} />}</>}</section>;
+  if (!activeQuiz || questions.length === 0) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1>{!suppliedQuiz && <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); setSourceDocumentIds([]); setGeneratedDraft(null); resetAttempt(); }} />}{generatedDraft ? <AiQuizPreview draft={generatedDraft} busy={submitting} error={generationError} onCancel={() => setGeneratedDraft(null)} onOptionChange={updateGeneratedOption} onQuestionChange={updateGeneratedQuestion} onSave={saveGeneratedDraft} /> : <><EmptyState title="Chưa có quiz" description="Tạo bộ câu hỏi cho môn học này để bắt đầu ôn tập." />{!suppliedQuiz && <><AiQuizGenerator aiStatus={aiStatus} documents={documents} documentsLoading={loadingDocuments} error={generationError} generating={generating} options={generationOptions} selectedDocumentIds={sourceDocumentIds} onGenerate={createAiQuiz} onOptionsChange={(field, value) => setGenerationOptions((current) => ({ ...current, [field]: field === "questionCount" ? Number(value) : value }))} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} /><button className="primary-button" type="button" onClick={() => { setShowCreator((current) => !current); setCreatorError(""); }}>{showCreator ? "Đóng biểu mẫu" : "Tạo quiz thủ công"}</button>{showCreator && <QuizCreator draft={draft} disabled={submitting} error={creatorError} documents={documents} documentsLoading={loadingDocuments} selectedDocumentIds={sourceDocumentIds} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} onChange={updateDraft} onSubmit={createManualQuiz} />}</>}</>}</section>;
 
   const complete = questions.every((question) => answers[question.id]);
   return <section className="page-section" aria-labelledby="quiz-title">
@@ -198,6 +214,10 @@ function QuizCreator({ draft, disabled, error, documents, documentsLoading, sele
 function AiQuizGenerator({ aiStatus, documents, documentsLoading, options, selectedDocumentIds, onDocumentToggle, onGenerate, onOptionsChange, generating, error }) {
   const readyDocuments = documents.filter((document) => document.processingStatus === "READY");
   return <section className="quiz-context"><strong>Tạo quiz bằng AI</strong><p>Chọn tài liệu đã sẵn sàng, số câu và mức độ khó trước khi tạo.</p>{aiStatus && <p className={aiStatus.ready ? "ai-ready" : "ai-unavailable"}>{aiStatus.message}</p>}{error && <p className="form-error">{error}</p>}<div className="ai-quiz-options"><label>Số câu<select value={options.questionCount} onChange={(event) => onOptionsChange("questionCount", event.target.value)}>{[1, 2, 3, 4, 5].map((count) => <option key={count} value={count}>{count} câu</option>)}</select></label><label>Mức độ<select value={options.difficulty} onChange={(event) => onOptionsChange("difficulty", event.target.value)}><option value="EASY">Dễ</option><option value="MEDIUM">Trung bình</option><option value="HARD">Khó</option></select></label></div>{documentsLoading ? <span>Đang tải tài liệu…</span> : readyDocuments.length === 0 ? <span>Chưa có tài liệu sẵn sàng.</span> : <fieldset className="quiz-source-picker"><legend>Nguồn cho AI</legend>{readyDocuments.map((document) => <label key={document.id}><input type="checkbox" checked={selectedDocumentIds.includes(document.id)} onChange={() => onDocumentToggle(document.id)} />{document.fileName}</label>)}</fieldset>}<button className="primary-button" type="button" disabled={generating || !aiStatus?.ready || selectedDocumentIds.length === 0} onClick={onGenerate}>{generating ? "AI đang tạo…" : "Tạo quiz từ tài liệu"}</button></section>;
+}
+
+function AiQuizPreview({ draft, busy, error, onCancel, onOptionChange, onQuestionChange, onSave }) {
+  return <section className="ai-quiz-preview"><p className="eyebrow">Bản nháp AI</p><h2>Xem và chỉnh sửa trước khi lưu</h2>{error && <p className="form-error">{error}</p>}{draft.questions.map((question, questionIndex) => <article key={questionIndex}><label>Câu {questionIndex + 1}<textarea value={question.questionText} onChange={(event) => onQuestionChange(questionIndex, "questionText", event.target.value)} rows="2" /></label>{question.options.map((option, optionIndex) => <label key={optionIndex}>Lựa chọn {optionIndex + 1}<input value={option} onChange={(event) => onOptionChange(questionIndex, optionIndex, event.target.value)} /></label>)}<label>Đáp án đúng<input value={question.answerText} onChange={(event) => onQuestionChange(questionIndex, "answerText", event.target.value)} /></label><label>Giải thích<textarea value={question.explanation ?? ""} onChange={(event) => onQuestionChange(questionIndex, "explanation", event.target.value)} rows="2" /></label></article>)}<div className="quiz-actions"><button className="secondary-button" type="button" disabled={busy} onClick={onCancel}>Hủy bản nháp</button><button className="primary-button" type="button" disabled={busy} onClick={onSave}>{busy ? "Đang lưu…" : "Lưu Quiz"}</button></div></section>;
 }
 
 function QuizHistory({ attempts, loading, error, onRetry }) {
