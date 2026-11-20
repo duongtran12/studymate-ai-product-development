@@ -113,14 +113,14 @@ describe("Dashboard course UI", () => {
   });
 
   it("shows per-quiz performance and flags a weak quiz for review", async () => {
-    getCourseQuizzes.mockResolvedValue([{ id: 11, title: "Kiểm thử đơn vị" }, { id: 12, title: "Tích hợp API" }]);
+    getCourseQuizzes.mockResolvedValue([{ id: 11, courseId: 7, title: "Kiểm thử đơn vị" }, { id: 12, courseId: 7, title: "Tích hợp API" }]);
     getQuizAttempts.mockImplementation((quizId) => Promise.resolve(quizId === 11
       ? [{ id: 1, score: 50, submittedAt: "2026-11-20T10:00:00Z" }, { id: 2, score: 60, submittedAt: "2026-11-20T11:00:00Z" }]
       : [{ id: 3, score: 90, submittedAt: "2026-11-20T12:00:00Z" }]));
     renderDashboard();
 
     expect(await screen.findByText("Kiểm thử đơn vị")).toBeTruthy();
-    expect(screen.getByText("Cần ôn · TB 55%")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Ôn lại · TB 55%" }).getAttribute("href")).toBe("/quizzes?course=7&quiz=11");
     expect(screen.getByText("Ổn định · TB 90%")).toBeTruthy();
   });
 });

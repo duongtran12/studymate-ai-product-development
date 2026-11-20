@@ -28,6 +28,7 @@ async function getStudyActivity(signal, courses) {
     const averageScore = scores.length ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length) : null;
     return {
       id: quiz.id,
+      courseId: quiz.courseId,
       title: quiz.title,
       attemptCount: attemptsForQuiz.length,
       averageScore,
@@ -193,7 +194,7 @@ export default function DashboardPage() {
           <article><strong>{activity.sessionCount}</strong><span>Phiên học đã lưu</span></article>
         </div>
         <div className="recent-attempts"><h3>Kết quả Quiz gần nhất</h3>{activity.recentAttempts.length === 0 ? <p>Chưa có lần làm Quiz nào.</p> : <ol>{activity.recentAttempts.map((attempt) => <li key={attempt.id}><strong>{attempt.score}%</strong><span>{new Date(attempt.submittedAt).toLocaleString("vi-VN")}</span></li>)}</ol>}</div>
-        <div className="quiz-performance"><div><h3>Tiến độ theo bộ Quiz</h3><p>Ưu tiên ôn lại những bộ có điểm trung bình dưới 70%.</p></div>{activity.quizPerformance.length === 0 ? <p className="activity-message">Hoàn thành một Quiz để xem điểm trung bình và điểm cao nhất.</p> : <ul>{activity.quizPerformance.map((quiz) => <li key={quiz.id}><div><strong>{quiz.title}</strong><span>{quiz.attemptCount} lần làm · Cao nhất {quiz.bestScore}%</span></div><b className={quiz.needsReview ? "review-needed" : "review-ready"}>{quiz.needsReview ? `Cần ôn · TB ${quiz.averageScore}%` : `Ổn định · TB ${quiz.averageScore}%`}</b></li>)}</ul>}</div></>}
+        <div className="quiz-performance"><div><h3>Tiến độ theo bộ Quiz</h3><p>Ưu tiên ôn lại những bộ có điểm trung bình dưới 70%.</p></div>{activity.quizPerformance.length === 0 ? <p className="activity-message">Hoàn thành một Quiz để xem điểm trung bình và điểm cao nhất.</p> : <ul>{activity.quizPerformance.map((quiz) => <li key={quiz.id}><div><strong>{quiz.title}</strong><span>{quiz.attemptCount} lần làm · Cao nhất {quiz.bestScore}%</span></div>{quiz.needsReview ? <Link className="review-needed review-link" to={`/quizzes?course=${quiz.courseId}&quiz=${quiz.id}`}>Ôn lại · TB {quiz.averageScore}%</Link> : <b className="review-ready">Ổn định · TB {quiz.averageScore}%</b>}</li>)}</ul>}</div></>}
       </section>
 
       <section className="course-area" aria-labelledby="courses-title">

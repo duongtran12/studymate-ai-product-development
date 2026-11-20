@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getUserErrorMessage } from "../api/apiError";
 import { getCourses } from "../api/courseApi";
 import { getDocuments } from "../api/documentLibraryApi";
@@ -14,8 +15,9 @@ function asPrototype(quiz) {
 
 export default function QuizPage({ quiz, loading = false, error = "", onRetry }) {
   const suppliedQuiz = asPrototype(quiz);
-  const [courseId, setCourseId] = useState("");
-  const [quizId, setQuizId] = useState("");
+  const [searchParams] = useSearchParams();
+  const [courseId, setCourseId] = useState(() => searchParams.get("course") ?? "");
+  const [quizId, setQuizId] = useState(() => searchParams.get("quiz") ?? "");
   const [answers, setAnswers] = useState({});
   const [attempt, setAttempt] = useState(null);
   const [submitError, setSubmitError] = useState("");
