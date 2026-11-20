@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/ContentState";
 import CourseEditor from "../components/CourseEditor";
-import { createCourse, deleteCourse, getCourses, updateCourse } from "../api/courseApi";
+import { createCourse, deleteCourse, getCourseLearningGoal, getCourses, saveCourseLearningGoal, updateCourse } from "../api/courseApi";
 import { getDocuments } from "../api/documentLibraryApi";
 import { getCourseQuizzes, getQuizAttempts } from "../api/quizApi";
 import { getStudySessions } from "../api/studySessionApi";
@@ -11,10 +11,10 @@ import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
 async function getStudyActivity(signal, courses) {
   const courseData = await Promise.all(courses.map(async (course) => {
-    const [documents, quizzes, sessions] = await Promise.all([
-      getDocuments(course.id, signal), getCourseQuizzes(course.id, signal), getStudySessions(course.id, signal),
+    const [documents, quizzes, sessions, goal] = await Promise.all([
+      getDocuments(course.id, signal), getCourseQuizzes(course.id, signal), getStudySessions(course.id, signal), getCourseLearningGoal(course.id, signal),
     ]);
-    return { course, documents, quizzes, sessions };
+    return { course, documents, quizzes, sessions, goal };
   }));
   const quizzes = courseData.flatMap((item) => item.quizzes);
   const attemptsByQuiz = await Promise.all(quizzes.map(async (quiz) => ({
@@ -36,12 +36,19 @@ async function getStudyActivity(signal, courses) {
       needsReview: averageScore !== null && averageScore < 70,
     };
   }).filter((quiz) => quiz.attemptCount > 0).sort((left, right) => left.averageScore - right.averageScore);
+  const learningGoals = courseData.filter((item) => item.goal.configured).map((item) => {
+    const courseAttempts = item.quizzes.flatMap((quiz) => attemptsByQuiz.find((entry) => entry.quizId === quiz.id)?.attempts ?? []);
+    const scores = courseAttempts.map((attempt) => Number(attempt.score));
+    const averageScore = scores.length ? Math.round(scores.reduce((total, score) => total + score, 0) / scores.length) : 0;
+    return { ...item.goal, courseName: item.course.name, attemptCount: courseAttempts.length, averageScore };
+  });
   return {
     readyDocuments: courseData.flatMap((item) => item.documents).filter((document) => document.processingStatus === "READY").length,
     quizCount: quizzes.length,
     sessionCount: courseData.flatMap((item) => item.sessions).length,
     recentAttempts: attempts.sort((left, right) => new Date(right.submittedAt) - new Date(left.submittedAt)).slice(0, 3),
     quizPerformance,
+    learningGoals,
   };
 }
 
@@ -60,7 +67,7 @@ export default function DashboardPage() {
   const requestActivity = useCallback((signal) => getStudyActivity(signal,
     activityCourseId ? courses.filter((course) => String(course.id) === activityCourseId) : courses), [activityCourseId, courses]);
   const { data: activity, loading: loadingActivity, error: activityError, run: loadActivity, cancel: cancelActivity } = useAsyncRequest(requestActivity, {
-    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [], quizPerformance: [] },
+    initialData: { readyDocuments: 0, quizCount: 0, sessionCount: 0, recentAttempts: [], quizPerformance: [], learningGoals: [] },
   });
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -68,6 +75,8 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [mutationError, setMutationError] = useState("");
   const [notice, setNotice] = useState("");
+  const [goalDraft, setGoalDraft] = useState({ courseId: "", targetAttemptCount: "3", targetAverageScore: "70" });
+  const [savingGoal, setSavingGoal] = useState(false);
 
   useEffect(() => {
     loadCourses();
@@ -84,6 +93,10 @@ export default function DashboardPage() {
       setActivityCourseId("");
     }
   }, [activityCourseId, courses]);
+
+  useEffect(() => {
+    if (!goalDraft.courseId && courses[0]?.id) setGoalDraft((current) => ({ ...current, courseId: String(courses[0].id) }));
+  }, [courses, goalDraft.courseId]);
 
   async function submitCourse(payload) {
     if (submitting) return false;
@@ -156,6 +169,28 @@ export default function DashboardPage() {
     }
   }
 
+  function chooseGoalCourse(courseId) {
+    const configured = activity.learningGoals.find((goal) => String(goal.courseId) === courseId);
+    setGoalDraft({ courseId, targetAttemptCount: String(configured?.targetAttemptCount ?? 3), targetAverageScore: String(configured?.targetAverageScore ?? 70) });
+  }
+
+  async function saveGoal(event) {
+    event.preventDefault();
+    if (!goalDraft.courseId || savingGoal) return;
+    setSavingGoal(true);
+    setMutationError("");
+    setNotice("");
+    try {
+      await saveCourseLearningGoal(Number(goalDraft.courseId), { targetAttemptCount: Number(goalDraft.targetAttemptCount), targetAverageScore: Number(goalDraft.targetAverageScore) });
+      await loadActivity();
+      setNotice("Đã lưu mục tiêu học tập.");
+    } catch (requestError) {
+      setMutationError(getUserErrorMessage(requestError));
+    } finally {
+      setSavingGoal(false);
+    }
+  }
+
   return (
     <section className="page-section" aria-labelledby="dashboard-title">
       <div className="page-heading">
@@ -195,6 +230,12 @@ export default function DashboardPage() {
         </div>
         <div className="recent-attempts"><h3>Kết quả Quiz gần nhất</h3>{activity.recentAttempts.length === 0 ? <p>Chưa có lần làm Quiz nào.</p> : <ol>{activity.recentAttempts.map((attempt) => <li key={attempt.id}><strong>{attempt.score}%</strong><span>{new Date(attempt.submittedAt).toLocaleString("vi-VN")}</span></li>)}</ol>}</div>
         <div className="quiz-performance"><div><h3>Tiến độ theo bộ Quiz</h3><p>Ưu tiên ôn lại những bộ có điểm trung bình dưới 70%.</p></div>{activity.quizPerformance.length === 0 ? <p className="activity-message">Hoàn thành một Quiz để xem điểm trung bình và điểm cao nhất.</p> : <ul>{activity.quizPerformance.map((quiz) => <li key={quiz.id}><div><strong>{quiz.title}</strong><span>{quiz.attemptCount} lần làm · Cao nhất {quiz.bestScore}%</span></div>{quiz.needsReview ? <Link className="review-needed review-link" to={`/quizzes?course=${quiz.courseId}&quiz=${quiz.id}`}>Ôn lại · TB {quiz.averageScore}%</Link> : <b className="review-ready">Ổn định · TB {quiz.averageScore}%</b>}</li>)}</ul>}</div></>}
+      </section>
+
+      <section className="learning-goals" aria-labelledby="goals-title">
+        <div><p className="eyebrow">Kế hoạch</p><h2 id="goals-title">Mục tiêu học tập</h2><p className="page-intro">Thiết lập mục tiêu cho từng môn để theo dõi thói quen làm Quiz và chất lượng ôn tập.</p></div>
+        {courses.length > 0 && <form className="goal-form" onSubmit={saveGoal}><label><span>Môn học</span><select value={goalDraft.courseId} onChange={(event) => chooseGoalCourse(event.target.value)}>{courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select></label><label><span>Số lượt Quiz mục tiêu</span><input min="1" max="100" type="number" value={goalDraft.targetAttemptCount} onChange={(event) => setGoalDraft((current) => ({ ...current, targetAttemptCount: event.target.value }))} /></label><label><span>Điểm trung bình mục tiêu (%)</span><input min="1" max="100" type="number" value={goalDraft.targetAverageScore} onChange={(event) => setGoalDraft((current) => ({ ...current, targetAverageScore: event.target.value }))} /></label><button className="secondary-button" disabled={savingGoal} type="submit">{savingGoal ? "Đang lưu…" : "Lưu mục tiêu"}</button></form>}
+        {activity.learningGoals.length > 0 && <div className="goal-list">{activity.learningGoals.map((goal) => <article key={goal.courseId}><div><strong>{goal.courseName}</strong><span>{goal.attemptCount}/{goal.targetAttemptCount} lượt Quiz · Điểm TB {goal.averageScore}%/{goal.targetAverageScore}%</span></div><b className={goal.attemptCount >= goal.targetAttemptCount && goal.averageScore >= goal.targetAverageScore ? "goal-complete" : "goal-progress"}>{goal.attemptCount >= goal.targetAttemptCount && goal.averageScore >= goal.targetAverageScore ? "Đã đạt mục tiêu" : "Đang thực hiện"}</b></article>)}</div>}
       </section>
 
       <section className="course-area" aria-labelledby="courses-title">

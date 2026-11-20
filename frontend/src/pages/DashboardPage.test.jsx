@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createCourse, deleteCourse, getCourses, updateCourse } from "../api/courseApi";
+import { createCourse, deleteCourse, getCourseLearningGoal, getCourses, saveCourseLearningGoal, updateCourse } from "../api/courseApi";
 import { getDocuments } from "../api/documentLibraryApi";
 import { getCourseQuizzes, getQuizAttempts } from "../api/quizApi";
 import { getStudySessions } from "../api/studySessionApi";
@@ -10,7 +10,9 @@ import DashboardPage from "./DashboardPage";
 vi.mock("../api/courseApi", () => ({
   createCourse: vi.fn(),
   deleteCourse: vi.fn(),
+  getCourseLearningGoal: vi.fn(),
   getCourses: vi.fn(),
+  saveCourseLearningGoal: vi.fn(),
   updateCourse: vi.fn(),
 }));
 vi.mock("../api/documentLibraryApi", () => ({ getDocuments: vi.fn() }));
@@ -35,6 +37,7 @@ function renderDashboard() {
 beforeEach(() => {
   vi.resetAllMocks();
   getCourses.mockResolvedValue([course]);
+  getCourseLearningGoal.mockResolvedValue({ courseId: 7, configured: false });
   getDocuments.mockResolvedValue([]);
   getCourseQuizzes.mockResolvedValue([]);
   getStudySessions.mockResolvedValue([]);
@@ -122,5 +125,17 @@ describe("Dashboard course UI", () => {
     expect(await screen.findByText("Kiểm thử đơn vị")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Ôn lại · TB 55%" }).getAttribute("href")).toBe("/quizzes?course=7&quiz=11");
     expect(screen.getByText("Ổn định · TB 90%")).toBeTruthy();
+  });
+
+  it("saves a learning goal for the selected course", async () => {
+    saveCourseLearningGoal.mockResolvedValue({ courseId: 7, configured: true, targetAttemptCount: 4, targetAverageScore: 85 });
+    renderDashboard();
+
+    await screen.findByRole("heading", { name: course.name });
+    fireEvent.change(screen.getByLabelText("Số lượt Quiz mục tiêu"), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText("Điểm trung bình mục tiêu (%)"), { target: { value: "85" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu mục tiêu" }));
+
+    await waitFor(() => expect(saveCourseLearningGoal).toHaveBeenCalledWith(7, { targetAttemptCount: 4, targetAverageScore: 85 }));
   });
 });

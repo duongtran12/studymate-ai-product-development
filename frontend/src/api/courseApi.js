@@ -27,3 +27,15 @@ export function updateCourse(courseId, course) {
 export function deleteCourse(courseId) {
   return apiRequest(`/api/v1/courses/${courseId}`, { method: "DELETE" });
 }
+
+export function getCourseLearningGoal(courseId, signal) {
+  return apiRequest(`/api/v1/courses/${courseId}/learning-goal`, { signal });
+}
+
+export function saveCourseLearningGoal(courseId, goal) {
+  return apiRequest(`/api/v1/courses/${courseId}/learning-goal`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(goal),
+  });
+}

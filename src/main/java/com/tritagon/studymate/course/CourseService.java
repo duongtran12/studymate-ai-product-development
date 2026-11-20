@@ -15,12 +15,14 @@ public class CourseService {
 	private final CourseRepository courseRepository;
 	private final UserAccountRepository userAccountRepository;
 	private final CourseAccessService courseAccessService;
+	private final CourseLearningGoalRepository learningGoalRepository;
 
 	public CourseService(CourseRepository courseRepository, UserAccountRepository userAccountRepository,
-			CourseAccessService courseAccessService) {
+			CourseAccessService courseAccessService, CourseLearningGoalRepository learningGoalRepository) {
 		this.courseRepository = courseRepository;
 		this.userAccountRepository = userAccountRepository;
 		this.courseAccessService = courseAccessService;
+		this.learningGoalRepository = learningGoalRepository;
 	}
 
 	public List<CourseResponse> list(Long ownerId) {
@@ -52,6 +54,21 @@ public class CourseService {
 		courseRepository.delete(courseAccessService.requireOwnedCourse(ownerId, courseId));
 	}
 
+	public CourseLearningGoalResponse getLearningGoal(Long ownerId, Long courseId) {
+		courseAccessService.requireOwnedCourse(ownerId, courseId);
+		return learningGoalRepository.findByCourseId(courseId).map(CourseLearningGoalResponse::from)
+				.orElseGet(() -> CourseLearningGoalResponse.empty(courseId));
+	}
+
+	public CourseLearningGoalResponse saveLearningGoal(Long ownerId, Long courseId, CourseLearningGoalRequest request) {
+		validateLearningGoal(request);
+		courseAccessService.requireOwnedCourse(ownerId, courseId);
+		CourseLearningGoal current = learningGoalRepository.findByCourseId(courseId).orElse(null);
+		CourseLearningGoal saved = learningGoalRepository.save(new CourseLearningGoal(current == null ? null : current.id(), courseId,
+				request.targetAttemptCount(), request.targetAverageScore(), OffsetDateTime.now()));
+		return CourseLearningGoalResponse.from(saved);
+	}
+
 	private void ensureUserExists(Long ownerId) {
 		if (!userAccountRepository.existsById(ownerId)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-User-Id does not identify an existing user.");
@@ -69,5 +86,15 @@ public class CourseService {
 
 	private String normalize(String value) {
 		return value == null || value.isBlank() ? null : value.trim();
+	}
+
+	private void validateLearningGoal(CourseLearningGoalRequest request) {
+		if (request == null || request.targetAttemptCount() == null || request.targetAttemptCount() < 1
+				|| request.targetAttemptCount() > 100) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target quiz attempts must be between 1 and 100.");
+		}
+		if (request.targetAverageScore() == null || request.targetAverageScore() < 1 || request.targetAverageScore() > 100) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target average score must be between 1 and 100.");
+		}
 	}
 }

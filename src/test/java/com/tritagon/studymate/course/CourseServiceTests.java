@@ -36,11 +36,14 @@ class CourseServiceTests {
 	@Mock
 	private CourseAccessService courseAccessService;
 
+	@Mock
+	private CourseLearningGoalRepository learningGoalRepository;
+
 	private CourseService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new CourseService(courseRepository, userAccountRepository, courseAccessService);
+		service = new CourseService(courseRepository, userAccountRepository, courseAccessService, learningGoalRepository);
 	}
 
 	@Test

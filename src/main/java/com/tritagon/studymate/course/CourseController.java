@@ -52,4 +52,15 @@ public class CourseController {
 		courseService.delete(userId, courseId);
 		return ResponseEntity.noContent().build();
 	}
+
+	@GetMapping("/{courseId}/learning-goal")
+	public CourseLearningGoalResponse learningGoal(@CurrentUserId Long userId, @PathVariable Long courseId) {
+		return courseService.getLearningGoal(userId, courseId);
+	}
+
+	@PutMapping("/{courseId}/learning-goal")
+	public CourseLearningGoalResponse saveLearningGoal(@CurrentUserId Long userId, @PathVariable Long courseId,
+			@RequestBody CourseLearningGoalRequest request) {
+		return courseService.saveLearningGoal(userId, courseId, request);
+	}
 }

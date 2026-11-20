@@ -164,6 +164,23 @@ class CourseApiIntegrationTests {
 		org.assertj.core.api.Assertions.assertThat(courseCode).isEqualTo("ORG101");
 	}
 
+	@Test
+	void ownerCanSetAndReadLearningGoal() throws Exception {
+		long courseId = responseId(mockMvc.perform(post("/api/v1/courses").header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Machine Learning\"}"))
+				.andExpect(status().isCreated()).andReturn());
+
+		mockMvc.perform(get("/api/v1/courses/{courseId}/learning-goal", courseId).header("X-User-Id", OWNER_ID))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.configured").value(false));
+		mockMvc.perform(put("/api/v1/courses/{courseId}/learning-goal", courseId).header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON).content("{\"targetAttemptCount\":5,\"targetAverageScore\":80}"))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.configured").value(true))
+				.andExpect(jsonPath("$.targetAttemptCount").value(5)).andExpect(jsonPath("$.targetAverageScore").value(80));
+		mockMvc.perform(put("/api/v1/courses/{courseId}/learning-goal", courseId).header("X-User-Id", OWNER_ID)
+				.contentType(MediaType.APPLICATION_JSON).content("{\"targetAttemptCount\":0,\"targetAverageScore\":80}"))
+				.andExpect(status().isBadRequest());
+	}
+
 	private void assertThatCourseCountIsZero() {
 		org.assertj.core.api.Assertions.assertThat(
 				jdbc.queryForObject("SELECT COUNT(*) FROM courses", Integer.class)).isZero();
