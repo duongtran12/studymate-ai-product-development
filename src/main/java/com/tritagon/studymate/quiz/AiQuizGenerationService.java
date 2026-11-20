@@ -1,6 +1,7 @@
 package com.tritagon.studymate.quiz;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
@@ -37,10 +38,12 @@ public class AiQuizGenerationService {
 		if (request == null || request.documentIds() == null || request.documentIds().isEmpty()) throw badRequest("Choose at least one ready document.");
 		int count = request.questionCount() == null ? 3 : request.questionCount();
 		if (count < 1 || count > 5) throw badRequest("Question count must be between 1 and 5.");
+		String difficulty = request.difficulty() == null ? "MEDIUM" : request.difficulty().trim().toUpperCase(Locale.ROOT);
+		if (!List.of("EASY", "MEDIUM", "HARD").contains(difficulty)) throw badRequest("Difficulty must be EASY, MEDIUM, or HARD.");
 		List<Long> ids = request.documentIds().stream().distinct().toList();
 		String context = ids.stream().map(id -> context(courseId, id)).reduce((left, right) -> left + "\n\n" + right).orElse("");
 		if (context.isBlank()) throw badRequest("No usable document content was found.");
-		String prompt = "Create exactly " + count + " Vietnamese multiple-choice questions from this context. Return only a JSON array. Each item must contain questionText, options (exactly 4 strings), answerText, explanation. Every answer must be supported by the context.\n\n" + context;
+		String prompt = "Create exactly " + count + " Vietnamese multiple-choice questions at " + difficulty + " difficulty from this context. Return only a JSON array. Each item must contain questionText, options (exactly 4 strings), answerText, explanation. Every answer must be supported by the context.\n\n" + context;
 		String generated = aiProvider.flatMap(provider -> provider.complete("You are a careful educational quiz generator. Output valid JSON only.", prompt))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "AI quiz generation is not configured."));
 		try {
