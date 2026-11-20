@@ -102,7 +102,10 @@ class QuizApiIntegrationTests {
 				.andExpect(jsonPath("$.status").value("SUBMITTED"))
 				.andExpect(jsonPath("$.correctCount").value(1))
 				.andExpect(jsonPath("$.questionCount").value(2))
-				.andExpect(jsonPath("$.score").value(50.00));
+				.andExpect(jsonPath("$.score").value(50.00))
+				.andExpect(jsonPath("$.feedback[0].correct").value(true))
+				.andExpect(jsonPath("$.feedback[1].correct").value(false))
+				.andExpect(jsonPath("$.feedback[1].correctAnswer").value("Nhiều thành phần"));
 
 		mockMvc.perform(get("/api/v1/quizzes/{quizId}/attempts", quizId).header("X-User-Id", OWNER_ID))
 				.andExpect(status().isOk())

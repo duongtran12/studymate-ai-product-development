@@ -140,7 +140,7 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     setSubmitError("");
     if (suppliedQuiz) {
       const correctCount = questions.filter((question) => answers[question.id] === question.correctAnswer).length;
-      setAttempt({ correctCount, questionCount: questions.length, score: Math.round(correctCount * 100 / questions.length), local: true });
+      setAttempt({ correctCount, questionCount: questions.length, score: Math.round(correctCount * 100 / questions.length), local: true, feedback: questions.map((question) => ({ questionId: question.id, selectedAnswer: answers[question.id], correctAnswer: question.correctAnswer, correct: answers[question.id] === question.correctAnswer, explanation: question.explanation })) });
       return;
     }
     setSubmitting(true);
@@ -181,11 +181,13 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     <div className="quiz-context"><strong>{suppliedQuiz ? "Nguồn đã chọn:" : "Bộ câu hỏi:"}</strong> {activeQuiz.source ?? `${questions.length} câu hỏi`}{!suppliedQuiz && activeQuiz.documentIds?.length > 0 && ` · ${activeQuiz.documentIds.length} tài liệu nguồn`}</div>
     {!suppliedQuiz && sourceDocuments.length > 0 && <ul className="quiz-source-list" aria-label="Tài liệu nguồn của Quiz">{sourceDocuments.map((document) => <li key={document.id}>⌁ {document.fileName}</li>)}</ul>}
     <article className="quiz-card">
-      {questions.map((question, index) => <div className="quiz-question" key={question.id}>
+      {questions.map((question, index) => {
+        const feedback = attempt?.feedback?.find((item) => item.questionId === question.id);
+        return <div className="quiz-question" key={question.id}>
         <p className="question-number">Câu {index + 1} / {questions.length}</p><h2>{question.questionText}</h2>
-        <div className="answer-options">{question.options.map((option) => <label className={`answer-option ${attempt?.local && option === question.correctAnswer ? "answer-correct" : ""}`} key={option}><input type="radio" name={`quiz-answer-${question.id}`} disabled={Boolean(attempt)} checked={answers[question.id] === option} onChange={() => chooseAnswer(question.id, option)} />{option}</label>)}</div>
-        {attempt?.local && question.explanation && <p className="quiz-explanation">{question.explanation}</p>}
-      </div>)}
+        <div className="answer-options">{question.options.map((option) => <label className={`answer-option ${feedback?.correctAnswer === option ? "answer-correct" : ""} ${feedback && !feedback.correct && feedback.selectedAnswer === option ? "answer-incorrect" : ""}`} key={option}><input type="radio" name={`quiz-answer-${question.id}`} disabled={Boolean(attempt)} checked={answers[question.id] === option} onChange={() => chooseAnswer(question.id, option)} />{option}</label>)}</div>
+        {feedback && <div className={`question-feedback ${feedback.correct ? "feedback-correct" : "feedback-incorrect"}`}><strong>{feedback.correct ? "Đúng rồi" : "Chưa chính xác"}</strong>{!feedback.correct && <span>Đáp án đúng: {feedback.correctAnswer}</span>}{feedback.explanation && <p>{feedback.explanation}</p>}</div>}
+      </div>})}
       {attempt && <div className="quiz-feedback"><strong>{attempt.correctCount === attempt.questionCount ? "Chính xác." : "Đã nộp bài."}</strong><p>Bạn đúng {attempt.correctCount}/{attempt.questionCount} câu, đạt {attempt.score}%.</p>{suppliedQuiz?.source && <span>Nguồn: {suppliedQuiz.source}</span>}</div>}
       <div className="quiz-actions"><button className="text-button danger" disabled={submitting || deletingQuiz} onClick={removeQuiz} type="button">{deletingQuiz ? "Đang xóa…" : "Xóa quiz"}</button><button className="secondary-button" disabled={submitting || deletingQuiz} onClick={resetAttempt} type="button">Làm lại</button><button className="primary-button" disabled={!complete || Boolean(attempt) || submitting || deletingQuiz} onClick={submit} type="button">{submitting ? "Đang nộp…" : "Nộp câu trả lời"}</button></div>
     </article>

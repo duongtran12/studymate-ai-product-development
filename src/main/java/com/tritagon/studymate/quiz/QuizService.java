@@ -104,11 +104,15 @@ public class QuizService {
 		int correctCount = (int) questions.stream()
 				.filter(question -> matches(question.answerText(), answers.get(question.id()))).count();
 		BigDecimal score = BigDecimal.valueOf(correctCount * 100.0 / questions.size()).setScale(2, RoundingMode.HALF_UP);
+		List<QuizAnswerFeedbackResponse> feedback = questions.stream()
+				.map(question -> new QuizAnswerFeedbackResponse(question.id(), answers.get(question.id()), question.answerText(),
+						matches(question.answerText(), answers.get(question.id())), question.explanation()))
+				.toList();
 		OffsetDateTime now = OffsetDateTime.now();
 		QuizAttempt attempt = attemptRepository.save(new QuizAttempt(null, quiz.id(), userId, "SUBMITTED", score, now, now));
 		attemptAnswerRepository.saveAll(questions.stream().map(question -> new QuizAttemptAnswer(null, attempt.id(),
 				question.id(), answers.get(question.id()), matches(question.answerText(), answers.get(question.id())), now)).toList());
-		return new QuizAttemptResponse(attempt.id(), quiz.id(), attempt.status(), score, correctCount, questions.size(), now);
+		return new QuizAttemptResponse(attempt.id(), quiz.id(), attempt.status(), score, correctCount, questions.size(), now, feedback);
 	}
 
 	private Quiz findOwnedQuiz(Long userId, Long quizId) {
