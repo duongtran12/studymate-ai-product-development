@@ -20,6 +20,8 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Allow Maven wrapper to run on Linux
+        run: chmod +x mvnw
       - name: Run backend test suite
         run: ./mvnw test
 
