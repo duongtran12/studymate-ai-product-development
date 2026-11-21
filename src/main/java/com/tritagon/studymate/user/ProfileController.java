@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
 
 import com.tritagon.studymate.web.CurrentUserId;
 
@@ -26,5 +27,11 @@ public class ProfileController {
 	@PutMapping
 	public ProfileResponse update(@CurrentUserId Long userId, @RequestBody ProfileUpdateRequest request) {
 		return profileService.update(userId, request);
+	}
+
+	@PutMapping("/password")
+	public ResponseEntity<Void> changePassword(@CurrentUserId Long userId, @RequestBody ProfilePasswordChangeRequest request) {
+		profileService.changePassword(userId, request);
+		return ResponseEntity.noContent().build();
 	}
 }

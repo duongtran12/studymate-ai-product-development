@@ -11,3 +11,11 @@ export function updateProfile(profile) {
     body: JSON.stringify(profile),
   });
 }
+
+export function changePassword(payload) {
+  return apiRequest("/api/v1/profile/password", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}

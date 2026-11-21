@@ -9,4 +9,6 @@ public interface AuthSessionRepository extends CrudRepository<AuthSession, Long>
 	Optional<AuthSession> findByTokenHash(String tokenHash);
 
 	void deleteByTokenHash(String tokenHash);
+
+	void deleteByUserId(Long userId);
 }
