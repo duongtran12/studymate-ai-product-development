@@ -68,13 +68,23 @@ Six integration-test cases were added without changing production services or AP
 
 The manual end-to-end journey was **not executed** during this verification run. The reusable procedure is recorded in `docs/quality/CHAPTER_8_END_TO_END_USER_JOURNEY_CHECKLIST.md`, with all Pass/Fail fields intentionally left blank for the demo tester.
 
+## Automated core journey follow-up
+
+The backend now includes `CoreLearningJourneyIntegrationTests`, executed on November 21, 2026 with:
+
+```powershell
+.\mvnw.cmd '-Dtest=CoreLearningJourneyIntegrationTests' test
+```
+
+Result: **1 test passed**. The test registers a learner, authenticates subsequent requests with the returned Bearer token, creates a course, uploads and ingests a DOCX document, starts a grounded study session, submits a question with supported context, creates a Quiz tied to the uploaded document, and records a correct Quiz attempt. This is API-level end-to-end coverage; it does not replace the separate browser-based manual journey.
+
 ## Known limitations and follow-up risks
 
 - There is no automated browser end-to-end suite. React tests use Vitest and Testing Library; the complete user journey still requires manual execution.
-- The Quiz page is a frontend prototype. There is no Quiz backend API, database persistence, generated question set or uploaded-document linkage to verify end to end.
+- There is no automated browser end-to-end suite yet. The API-level core journey covers persisted Quiz and document linkage, while browser behavior remains covered by build checks and manual verification.
 - Grounded answers use a deterministic mock generator rather than a real RAG/LLM pipeline.
 - Integration tests run against in-memory H2 in PostgreSQL compatibility mode, not a containerized PostgreSQL instance.
-- User identity still relies on the temporary `X-User-Id` header rather than production authentication/JWT.
+- The system supports Bearer session tokens for authenticated flows; the legacy `X-User-Id` header remains available for selected tests and local compatibility.
 - Maven emitted non-failing warnings about Mockito dynamically attaching its agent and the test H2 version being newer than Flyway's latest verified version.
 - `npm install --no-package-lock` reported six moderate dependency audit findings. No automatic audit fix was applied because it could introduce unrelated or breaking dependency changes.
 - `pnpm build` needs to be rerun on a developer machine where pnpm can create symlinks (or with an approved Windows developer-mode/elevated setup) before the PR is merged if the team requires a pnpm-specific green run.

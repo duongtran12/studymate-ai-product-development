@@ -34,7 +34,7 @@ This plan turns the core StudyMate user journeys into repeatable backend checks 
 
 ### Quiz boundary
 
-Quiz user-interface automation is assigned outside this backend scope. Its system test should verify that quiz requests contain valid course-scoped source material and that loading, empty, error, and completed states are visible to the learner.
+Quiz user-interface automation is assigned outside this backend scope. The backend system journey now verifies that a registered learner can upload a document, open a grounded study session, create a source-scoped Quiz and submit an attempt. Its UI counterpart should verify that loading, empty, error and completed states are visible to the learner.
 
 ## Automation and evidence
 
