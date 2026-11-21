@@ -65,3 +65,12 @@ After the gate passes:
 
 1. Confirm that no `.env`, dependency directory, build output, or secrets appear in `git status`.
 2. Link changed requirements, AI evidence, and verification results in the pull request.
+
+## Continuous integration
+
+GitHub Actions runs automatically for every push and pull request through `.github/workflows/ci.yml`.
+
+- The backend job uses Java 21 and runs the complete Maven test suite.
+- The frontend job installs dependencies from `frontend/pnpm-lock.yaml`, then runs tests, ESLint and the production build.
+
+The two jobs run independently, so a failed check identifies whether the backend or frontend needs attention.
