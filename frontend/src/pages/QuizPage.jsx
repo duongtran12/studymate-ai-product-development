@@ -9,7 +9,7 @@ import { useAsyncRequest } from "../hooks/useAsyncRequest";
 
 function asPrototype(quiz) {
   if (quiz?.questions) return quiz;
-  if (!quiz?.question || !quiz?.options) return null;
+  if (!quiz?.question || !Array.isArray(quiz.options) || quiz.options.length === 0) return null;
   return { ...quiz, questions: [{ id: "prototype-question", questionText: quiz.question, options: quiz.options, correctAnswer: quiz.correctAnswer }] };
 }
 
@@ -168,8 +168,9 @@ export default function QuizPage({ quiz, loading = false, error = "", onRetry })
     finally { setDeletingQuiz(false); }
   }
 
-  if (busy) return <section className="page-section"><LoadingState message="Đang chuẩn bị quiz…" /></section>;
   if (requestError) return <section className="page-section"><ErrorState message={requestError} onRetry={error || coursesError ? (onRetry ?? retryCourses) : retryQuizzes} /></section>;
+  if (quiz && !suppliedQuiz) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1><EmptyState title="Chưa có quiz" description="Dữ liệu bộ câu hỏi không hợp lệ hoặc chưa có lựa chọn để làm bài." /></section>;
+  if (busy) return <section className="page-section"><LoadingState message="Đang chuẩn bị quiz…" /></section>;
   if (!suppliedQuiz && courses.length === 0) return <section className="page-section"><EmptyState title="Chưa có môn học" description="Hãy tạo một môn học trước khi làm quiz." /></section>;
   if (!activeQuiz || questions.length === 0) return <section className="page-section"><p className="eyebrow">Ôn tập từ tài liệu</p><h1>Quiz môn học</h1>{!suppliedQuiz && <CoursePicker courses={courses} value={courseId} onChange={(value) => { setCourseId(value); setSourceDocumentIds([]); setGeneratedDraft(null); resetAttempt(); }} />}{generatedDraft ? <AiQuizPreview draft={generatedDraft} busy={submitting} error={generationError} onCancel={() => setGeneratedDraft(null)} onOptionChange={updateGeneratedOption} onQuestionChange={updateGeneratedQuestion} onSave={saveGeneratedDraft} /> : <><EmptyState title="Chưa có quiz" description="Tạo bộ câu hỏi cho môn học này để bắt đầu ôn tập." />{!suppliedQuiz && <><AiQuizGenerator aiStatus={aiStatus} documents={documents} documentsLoading={loadingDocuments} error={generationError} generating={generating} options={generationOptions} selectedDocumentIds={sourceDocumentIds} onGenerate={createAiQuiz} onOptionsChange={(field, value) => setGenerationOptions((current) => ({ ...current, [field]: field === "questionCount" ? Number(value) : value }))} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} /><button className="primary-button" type="button" onClick={() => { setShowCreator((current) => !current); setCreatorError(""); }}>{showCreator ? "Đóng biểu mẫu" : "Tạo quiz thủ công"}</button>{showCreator && <QuizCreator draft={draft} disabled={submitting} error={creatorError} documents={documents} documentsLoading={loadingDocuments} selectedDocumentIds={sourceDocumentIds} onDocumentToggle={(documentId) => setSourceDocumentIds((current) => current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId])} onChange={updateDraft} onSubmit={createManualQuiz} />}</>}</>}</section>;
 

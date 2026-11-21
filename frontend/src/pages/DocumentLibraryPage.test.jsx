@@ -39,7 +39,7 @@ describe("Document Library UI", () => {
 
     expect(screen.getByRole("status").textContent).toContain("Đang tải môn học");
     expect(await screen.findByRole("heading", { name: "chapter-08.pdf" })).toBeTruthy();
-    expect(screen.getByText("Đã tải lên")).toBeTruthy();
+    expect(screen.getByText("Đã tải lên", { selector: ".status-badge" })).toBeTruthy();
     expect(screen.getByText(/2 KB/)).toBeTruthy();
     expect(getDocuments).toHaveBeenCalledWith("7", expect.any(AbortSignal));
   });
