@@ -25,9 +25,9 @@ Run the Spring Boot application from the repository root:
 
 The application reads the `SPRING_DATASOURCE_*` and `SERVER_PORT` environment variables. Their local examples are listed in `.env.example`; production values must be supplied by the deployment environment and never committed.
 
-The default local `dev` profile creates one `Demo Student` account (`demo@studymate.local`) after Flyway has applied migrations. The React client sends `X-User-Id: 1` by default, so this account lets the Course, Document and Study Session flows work before real authentication is implemented. To use another local account, set `VITE_API_USER_ID` to its database ID before starting Vite.
+The default local `dev` profile creates one `Demo Student` account (`demo@studymate.local`) after Flyway has applied migrations. The application supports registration and Bearer-token login; the React client stores the session token after login. For local compatibility, the client can still fall back to `X-User-Id: 1` when no session is present. To use another local fallback account, set `VITE_API_USER_ID` to its database ID before starting Vite.
 
-This bootstrap account is restricted to the `dev` profile. A deployed environment must set an explicit non-dev profile and must not rely on `X-User-Id`; the future authentication module will replace this temporary Chapter 5 mechanism.
+This bootstrap account is restricted to the `dev` profile. A deployed environment must set an explicit non-dev profile and should use the Bearer-token authentication flow rather than the legacy `X-User-Id` fallback.
 
 ## Frontend
 
@@ -74,3 +74,5 @@ GitHub Actions runs automatically for every push and pull request through `.gith
 - The frontend job installs dependencies from `frontend/pnpm-lock.yaml`, then runs tests, ESLint and the production build.
 
 The two jobs run independently, so a failed check identifies whether the backend or frontend needs attention.
+
+Before merging a Pull Request, verify that both **Backend tests** and **Frontend quality** are green in GitHub Actions, the branch has no conflicts, and the change description records any new verification steps.
